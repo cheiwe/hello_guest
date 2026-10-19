@@ -179,9 +179,9 @@ void AHGPlayerController::HGLanguage(const FString& Culture)
 
 void AHGPlayerController::HGGive(FName ItemId)
 {
-	if (AHGPlayerCharacter* Player = Cast<AHGPlayerCharacter>(GetPawn()))
+	if (AHGPlayerCharacter* PlayerCharacter = Cast<AHGPlayerCharacter>(GetPawn()))
 	{
-		Player->GetInventory()->AddItem(ItemId);
+		PlayerCharacter->GetInventory()->AddItem(ItemId);
 	}
 }
 

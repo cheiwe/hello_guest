@@ -331,7 +331,7 @@ void AHGGuestAIController::MoveToNextPatrolPoint()
 	if (Candidates.IsEmpty())
 	{
 		// No patrol points placed: wander around.
-		if (const UNavigationSystemV1* Nav = UNavigationSystemV1::GetCurrent<UNavigationSystemV1>(GetWorld()))
+		if (const UNavigationSystemV1* Nav = UNavigationSystemV1::GetNavigationSystem(GetWorld()))
 		{
 			FNavLocation Point;
 			if (Nav->GetRandomReachablePointInRadius(PawnLocation, 1500.f, Point))
@@ -364,7 +364,7 @@ void AHGGuestAIController::MoveToNextPatrolPoint()
 
 void AHGGuestAIController::MoveToSearchPoint()
 {
-	const UNavigationSystemV1* Nav = UNavigationSystemV1::GetCurrent<UNavigationSystemV1>(GetWorld());
+	const UNavigationSystemV1* Nav = UNavigationSystemV1::GetNavigationSystem(GetWorld());
 	FNavLocation Point;
 	if (!Nav || !Nav->GetRandomReachablePointInRadius(LastKnownLocation, UHGGameplaySettings::Get()->SearchRadius, Point))
 	{
