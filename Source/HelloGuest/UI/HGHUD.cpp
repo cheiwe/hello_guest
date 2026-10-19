@@ -5,9 +5,11 @@
 #include "Interaction/HGInteractable.h"
 #include "Core/HGItemLibrary.h"
 #include "Save/HGSaveSubsystem.h"
+#include "CanvasItem.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
+#include "Engine/World.h"
 
 #define LOCTEXT_NAMESPACE "HGHUD"
 
@@ -26,7 +28,7 @@ void AHGHUD::HandleGameSaved(int32 SlotIndex, bool bAutosave)
 	SaveIndicatorUntil = GetWorld()->GetRealTimeSeconds() + 2.0;
 }
 
-void AHGHUD::DrawLine(const FText& Text, float X, float Y, const FLinearColor& Color, float Scale)
+void AHGHUD::DrawTextLine(const FText& Text, float X, float Y, const FLinearColor& Color, float Scale)
 {
 	FCanvasTextItem Item(FVector2D(X, Y), Text, GEngine->GetMediumFont(), Color);
 	Item.Scale = FVector2D(Scale);
@@ -62,7 +64,7 @@ void AHGHUD::DrawHUD()
 			const FText Prompt = bCanUse
 				? FText::Format(LOCTEXT("Prompt", "[{0}] {1}"), PC->GetInteractKeyLabel(), Action)
 				: Action;
-			DrawLine(Prompt, CenterX + 20.f, CenterY + 20.f, bCanUse ? FLinearColor::White : FLinearColor(1.f, 0.6f, 0.5f));
+			DrawTextLine(Prompt, CenterX + 20.f, CenterY + 20.f, bCanUse ? FLinearColor::White : FLinearColor(1.f, 0.6f, 0.5f));
 		}
 	}
 
@@ -77,13 +79,13 @@ void AHGHUD::DrawHUD()
 			? FText::Format(LOCTEXT("ItemCount", "{0} x{1}"), Name, Entries[Index].Count)
 			: Name;
 		const bool bSelected = Index == Inventory->GetSelectedIndex();
-		DrawLine(Line, 30.f, Y, bSelected ? FLinearColor(1.f, 0.85f, 0.3f) : FLinearColor(0.85f, 0.85f, 0.85f));
+		DrawTextLine(Line, 30.f, Y, bSelected ? FLinearColor(1.f, 0.85f, 0.3f) : FLinearColor(0.85f, 0.85f, 0.85f));
 		Y += 22.f;
 	}
 
 	if (GetWorld()->GetRealTimeSeconds() < SaveIndicatorUntil)
 	{
-		DrawLine(LOCTEXT("Saving", "Saving..."), Canvas->ClipX - 160.f, Canvas->ClipY - 50.f, FLinearColor::White);
+		DrawTextLine(LOCTEXT("Saving", "Saving..."), Canvas->ClipX - 160.f, Canvas->ClipY - 50.f, FLinearColor::White);
 	}
 
 	if (Player->IsStunned())

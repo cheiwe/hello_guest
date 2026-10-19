@@ -6,6 +6,7 @@
 #include "Core/HGGameMode.h"
 #include "Core/HGGameplaySettings.h"
 #include "Core/HGWorldStateSubsystem.h"
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "NavigationSystem.h"
@@ -209,7 +210,7 @@ void AHGGuestAIController::StartChase(AHGPlayerCharacter* Player)
 	LastKnownLocation = Player->GetActorLocation();
 	EnterState(EHGGuestState::Chase);
 
-	MoveToActor(Player, UHGGameplaySettings::Get()->CatchDistance * 0.5f, true, true, false, nullptr, true);
+	MoveToActor(Player, UHGGameplaySettings::Get()->CatchDistance * 0.5f, true, true, false, TSubclassOf<UNavigationQueryFilter>(), true);
 
 	if (!bWasChasing)
 	{
@@ -301,7 +302,7 @@ void AHGGuestAIController::OnMoveCompleted(FAIRequestID RequestID, const FPathFo
 	case EHGGuestState::Chase:
 		if (AHGPlayerCharacter* Player = Target.Get())
 		{
-			MoveToActor(Player, Settings->CatchDistance * 0.5f, true, true, false, nullptr, true);
+			MoveToActor(Player, Settings->CatchDistance * 0.5f, true, true, false, TSubclassOf<UNavigationQueryFilter>(), true);
 		}
 		break;
 

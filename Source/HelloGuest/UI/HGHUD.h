@@ -23,7 +23,7 @@ private:
 	UFUNCTION()
 	void HandleGameSaved(int32 SlotIndex, bool bAutosave);
 
-	void DrawLine(const FText& Text, float X, float Y, const FLinearColor& Color, float Scale = 1.f);
+	void DrawTextLine(const FText& Text, float X, float Y, const FLinearColor& Color, float Scale = 1.f);
 
 	double SaveIndicatorUntil = 0.0;
 };

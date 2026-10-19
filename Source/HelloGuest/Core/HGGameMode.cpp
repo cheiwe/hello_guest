@@ -5,6 +5,7 @@
 #include "Player/HGPlayerController.h"
 #include "AI/HGGuestCharacter.h"
 #include "UI/HGHUD.h"
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
