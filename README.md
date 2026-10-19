@@ -15,6 +15,8 @@
 
 ## Первый запуск
 
+Подробная пошаговая инструкция: [Docs/OPEN_PROJECT.md](Docs/OPEN_PROJECT.md).
+
 1. Клонировать репозиторий, выполнить `git lfs pull`.
 2. Открыть `HelloGuest.uproject`. Движок предложит собрать модуль `HelloGuest` → **Yes**.
    (Либо ПКМ по `.uproject` → *Generate Visual Studio project files* и собрать `HelloGuestEditor` в VS.)
