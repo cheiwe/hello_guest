@@ -166,6 +166,20 @@ void AHGGuestCharacter::SetupModel()
 	MeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -HalfHeight));
 	MeshComponent->SetRelativeRotation(FRotator(0.f, Settings->CharacterMeshYawOffset, 0.f));
 
+	// Extra parts (the cloak) are separate meshes on the same skeleton: they copy the body's pose.
+	for (const TSoftObjectPtr<USkeletalMesh>& ExtraPtr : Settings->GuestExtraMeshes)
+	{
+		if (USkeletalMesh* Extra = ExtraPtr.LoadSynchronous())
+		{
+			USkeletalMeshComponent* Part = NewObject<USkeletalMeshComponent>(this);
+			Part->SetupAttachment(MeshComponent);
+			Part->SetSkeletalMeshAsset(Extra);
+			Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			Part->RegisterComponent();
+			Part->SetLeaderPoseComponent(MeshComponent);
+		}
+	}
+
 	PlaceholderBody->SetVisibility(false);
 
 	IdleAnim = Settings->GuestIdleAnim.LoadSynchronous();

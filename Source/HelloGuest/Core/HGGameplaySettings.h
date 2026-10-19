@@ -153,6 +153,10 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Guest|Model")
 	TSoftObjectPtr<USkeletalMesh> GuestMesh;
 
+	/** Extra parts on the same skeleton (the cloak); they follow the main mesh's animation. */
+	UPROPERTY(Config, EditAnywhere, Category = "Guest|Model")
+	TArray<TSoftObjectPtr<USkeletalMesh>> GuestExtraMeshes;
+
 	UPROPERTY(Config, EditAnywhere, Category = "Guest|Model")
 	TSoftObjectPtr<UAnimSequence> GuestIdleAnim;
 
@@ -175,7 +179,7 @@ public:
 
 	/** Used by the import script; also writes the values to Config/DefaultGame.ini. */
 	UFUNCTION(BlueprintCallable, Category = "Hello Guest|Settings")
-	static void SetGuestAssets(USkeletalMesh* Mesh, UAnimSequence* Idle, UAnimSequence* Walk, UAnimSequence* Run,
+	static void SetGuestAssets(USkeletalMesh* Mesh, const TArray<USkeletalMesh*>& ExtraMeshes, UAnimSequence* Idle, UAnimSequence* Walk, UAnimSequence* Run,
 		UAnimSequence* Search, UAnimSequence* Catch);
 
 	// --- Death --------------------------------------------------------------

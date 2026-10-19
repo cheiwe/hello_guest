@@ -66,6 +66,24 @@ def find_anim(anims, wanted):
     return None
 
 
+def material_names(mesh):
+    names = []
+    for slot in mesh.get_editor_property("materials"):
+        names.append(str(slot.get_editor_property("material_slot_name")).lower())
+        material = slot.get_editor_property("material_interface")
+        if material is not None:
+            names.append(material.get_name().lower())
+    return names
+
+
+def pick_body(meshes):
+    for mesh in meshes:
+        names = material_names(mesh) + [mesh.get_name().lower()]
+        if not any("cloak" in n for n in names):
+            return mesh
+    return meshes[0]
+
+
 def main():
     guest_folder = None
     for name, path in CHARACTERS.items():
@@ -86,8 +104,15 @@ def main():
     unreal.log("Hello Guest: Guest skeletal meshes: %s" % [m.get_name() for m in meshes])
     unreal.log("Hello Guest: Guest animations (%d): %s" % (len(anims), sorted(a.get_name() for a in anims)))
 
+    # The Guest comes as two skeletal meshes on one skeleton: the body and the cloak.
+    # The body is the main mesh; everything else is attached and follows its animation.
+    body = pick_body(meshes)
+    extras = [m for m in meshes if m != body]
+    unreal.log("Hello Guest: body = %s, extra parts = %s" % (body.get_name(), [m.get_name() for m in extras]))
+
     unreal.HGGameplaySettings.set_guest_assets(
-        meshes[0],
+        body,
+        extras,
         find_anim(anims, GUEST_ANIMS["idle"]),
         find_anim(anims, GUEST_ANIMS["walk"]),
         find_anim(anims, GUEST_ANIMS["run"]),
