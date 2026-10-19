@@ -74,6 +74,7 @@ private:
 	float StateTime = 0.f;
 	float TimeSinceSeen = 0.f;
 	float WaitRemaining = 0.f;
+	float RepathCooldown = 0.f;
 	bool bCaught = false;
 
 	/** True after a chase: searching may then follow the player into restricted rooms. */

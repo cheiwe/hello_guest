@@ -179,6 +179,15 @@ void AHGGuestAIController::TickChase(float DeltaSeconds)
 	}
 
 	const UHGGameplaySettings* Settings = UHGGameplaySettings::Get();
+
+	// Re-path a few times per second if the previous move ended (reached a partial path end, etc.).
+	RepathCooldown -= DeltaSeconds;
+	if (RepathCooldown <= 0.f && GetMoveStatus() == EPathFollowingStatus::Idle)
+	{
+		RepathCooldown = 0.25f;
+		MoveToActor(Player, Settings->CatchDistance * 0.5f, true, true, false, TSubclassOf<UNavigationQueryFilter>(), true);
+	}
+
 	if (CanNoticePlayer(Player) && LineOfSightTo(Player))
 	{
 		TimeSinceSeen = 0.f;
@@ -300,10 +309,8 @@ void AHGGuestAIController::OnMoveCompleted(FAIRequestID RequestID, const FPathFo
 		break;
 
 	case EHGGuestState::Chase:
-		if (AHGPlayerCharacter* Player = Target.Get())
-		{
-			MoveToActor(Player, Settings->CatchDistance * 0.5f, true, true, false, TSubclassOf<UNavigationQueryFilter>(), true);
-		}
+		// Never start a new move from here: a move that completes instantly (partial path, target
+		// off the navmesh) would call back into this function and recurse. TickChase re-paths.
 		break;
 
 	default:
