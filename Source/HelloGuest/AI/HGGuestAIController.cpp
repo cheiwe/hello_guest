@@ -6,7 +6,9 @@
 #include "Core/HGGameMode.h"
 #include "Core/HGGameplaySettings.h"
 #include "Core/HGWorldStateSubsystem.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "HelloGuest.h"
 #include "EngineUtils.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "NavigationSystem.h"
@@ -270,7 +272,7 @@ void AHGGuestAIController::EnterState(EHGGuestState NewState)
 
 	case EHGGuestState::Investigate:
 	case EHGGuestState::Search:
-		MoveToLocation(LastKnownLocation, 80.f, true, true, true, false, Filter, true);
+		RequestMove(LastKnownLocation, 80.f, Filter, true);
 		break;
 
 	default:
@@ -344,7 +346,7 @@ void AHGGuestAIController::MoveToNextPatrolPoint()
 			FNavLocation Point;
 			if (Nav->GetRandomReachablePointInRadius(PawnLocation, 1500.f, Point))
 			{
-				MoveToLocation(Point.Location, 50.f, true, true, false, false, UHGNavFilter_GuestPatrol::StaticClass(), true);
+				RequestMove(Point.Location, 50.f, UHGNavFilter_GuestPatrol::StaticClass(), false);
 				return;
 			}
 		}
@@ -367,7 +369,7 @@ void AHGGuestAIController::MoveToNextPatrolPoint()
 	const TSubclassOf<UNavigationQueryFilter> Filter = Chosen->bInRestrictedRoom
 		? TSubclassOf<UNavigationQueryFilter>()
 		: TSubclassOf<UNavigationQueryFilter>(UHGNavFilter_GuestPatrol::StaticClass());
-	MoveToLocation(Chosen->GetActorLocation(), 50.f, true, true, true, false, Filter, true);
+	RequestMove(Chosen->GetActorLocation(), 50.f, Filter, true);
 }
 
 void AHGGuestAIController::MoveToSearchPoint()
@@ -383,7 +385,7 @@ void AHGGuestAIController::MoveToSearchPoint()
 	const TSubclassOf<UNavigationQueryFilter> Filter = bAllowRestricted
 		? TSubclassOf<UNavigationQueryFilter>()
 		: TSubclassOf<UNavigationQueryFilter>(UHGNavFilter_GuestPatrol::StaticClass());
-	MoveToLocation(Point.Location, 60.f, true, true, false, false, Filter, true);
+	RequestMove(Point.Location, 60.f, Filter, false);
 }
 
 void AHGGuestAIController::UpdateSpeed()
@@ -440,4 +442,34 @@ void AHGGuestAIController::ResetToPatrol()
 	bCaught = false;
 	bAllowRestricted = false;
 	EnterState(EHGGuestState::Patrol);
+}
+
+void AHGGuestAIController::RequestMove(const FVector& Destination, float AcceptanceRadius, TSubclassOf<UNavigationQueryFilter> Filter,
+	bool bProjectToNavigation)
+{
+	const EPathFollowingRequestResult::Type Result =
+		MoveToLocation(Destination, AcceptanceRadius, true, true, bProjectToNavigation, false, Filter, true);
+	if (Result != EPathFollowingRequestResult::Failed)
+	{
+		return;
+	}
+
+	// A failed request never reaches OnMoveCompleted: schedule a retry, otherwise the Guest freezes.
+	if (State == EHGGuestState::Investigate)
+	{
+		State = EHGGuestState::Search;
+		StateTime = 0.f;
+	}
+	WaitRemaining = 1.f;
+
+	const UNavigationSystemV1* Nav = UNavigationSystemV1::GetNavigationSystem(GetWorld());
+	if (!bWarnedNoNavMesh && (!Nav || !Nav->GetDefaultNavDataInstance()))
+	{
+		bWarnedNoNavMesh = true;
+		UE_LOG(LogHelloGuest, Warning, TEXT("Guest cannot move: the level has no navigation mesh (NavMeshBoundsVolume)."));
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("Hello Guest: no navmesh on this level - the Guest cannot move"));
+		}
+	}
 }

@@ -10,6 +10,7 @@ class AHGPlayerCharacter;
 class AHGGuestCharacter;
 class UAISenseConfig_Sight;
 class UAISenseConfig_Hearing;
+class UNavigationQueryFilter;
 
 /**
  * Guest behaviour as a small state machine:
@@ -62,6 +63,9 @@ private:
 	void CatchPlayer();
 	void UpdateSpeed();
 
+	/** MoveToLocation that retries later instead of freezing when no path can be requested. */
+	void RequestMove(const FVector& Destination, float AcceptanceRadius, TSubclassOf<UNavigationQueryFilter> Filter, bool bProjectToNavigation);
+
 	/** Applies the dark-zone rule on top of the engine's line-of-sight check. */
 	bool CanNoticePlayer(const AHGPlayerCharacter* Player) const;
 
@@ -75,6 +79,7 @@ private:
 	float TimeSinceSeen = 0.f;
 	float WaitRemaining = 0.f;
 	float RepathCooldown = 0.f;
+	bool bWarnedNoNavMesh = false;
 	bool bCaught = false;
 
 	/** True after a chase: searching may then follow the player into restricted rooms. */

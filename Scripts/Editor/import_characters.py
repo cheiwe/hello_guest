@@ -5,6 +5,10 @@ Guest's mesh and animations in Project Settings > Game > Hello Guest.
 
 Run in the Unreal Editor: Tools > Execute Python Script... > select this file.
 Re-running re-imports and overwrites the assets.
+
+If the test level /Game/Maps/L_Sandbox is open, a preview of the Neighbor playing his idle
+animation is placed in front of his house (only to look at the model; in the game the Neighbor
+appears in the intro and the final video).
 """
 
 import os
@@ -84,12 +88,59 @@ def pick_body(meshes):
     return meshes[0]
 
 
+NEIGHBOR_PREVIEW_LABEL = "NeighborPreview"
+NEIGHBOR_PREVIEW_LOCATION = unreal.Vector(-300.0, 300.0, 0.0)
+
+
+def place_neighbor_preview(folder):
+    world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+    if world is None or world.get_name() != "L_Sandbox":
+        unreal.log("Hello Guest: open L_Sandbox and run the script again to place the Neighbor preview")
+        return
+
+    actors = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    old = [a for a in actors.get_all_level_actors() if a.get_actor_label().startswith(NEIGHBOR_PREVIEW_LABEL)]
+    if old:
+        actors.destroy_actors(old)
+
+    assets = load_assets(folder)
+    meshes = [a for a in assets if isinstance(a, unreal.SkeletalMesh)]
+    anims = [a for a in assets if isinstance(a, unreal.AnimSequence)]
+    yaw = unreal.get_default_object(unreal.HGGameplaySettings).get_editor_property("character_mesh_yaw_offset")
+
+    # The Neighbor is split into several meshes (body, head, hair...). Each gets the idle animation
+    # made for its own skeleton; they start together, so they stay in sync.
+    for index, mesh in enumerate(meshes):
+        skeleton = mesh.get_editor_property("skeleton")
+        idle = next((a for a in anims if "Calm_Idle_SK" in a.get_name() and a.get_editor_property("skeleton") == skeleton), None)
+        if idle is None:
+            idle = next((a for a in anims if "Calm_Idle_SK" in a.get_name()), None)
+        actor = actors.spawn_actor_from_class(unreal.SkeletalMeshActor, NEIGHBOR_PREVIEW_LOCATION,
+                                              unreal.Rotator(roll=0.0, pitch=0.0, yaw=yaw))
+        actor.set_actor_label("%s_%d" % (NEIGHBOR_PREVIEW_LABEL, index))
+        actor.set_folder_path("Characters")
+        component = actor.get_editor_property("skeletal_mesh_component")
+        component.set_skeletal_mesh_asset(mesh)
+        if idle is not None:
+            component.set_editor_property("animation_mode", unreal.AnimationMode.ANIMATION_SINGLE_NODE)
+            play_data = unreal.SingleAnimationPlayData()
+            play_data.set_editor_property("anim_to_play", idle)
+            play_data.set_editor_property("saved_looping", True)
+            play_data.set_editor_property("saved_playing", True)
+            component.set_editor_property("animation_data", play_data)
+
+    unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).save_current_level()
+    unreal.log("Hello Guest: Neighbor preview placed (%d parts)" % len(meshes))
+
+
 def main():
     guest_folder = None
     for name, path in CHARACTERS.items():
         folder = import_glb(name, path)
         if name == "Guest":
             guest_folder = folder
+        if name == "Neighbor" and folder:
+            place_neighbor_preview(folder)
 
     if not guest_folder:
         return
