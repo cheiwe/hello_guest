@@ -7,7 +7,7 @@
 
 ## Требования
 
-- Unreal Engine **5.6** или новее. Если стоит другая версия: ПКМ по `HelloGuest.uproject` →
+- Unreal Engine **5.8**. Если стоит другая версия: ПКМ по `HelloGuest.uproject` →
   *Switch Unreal Engine version*.
 - Windows: Visual Studio 2022 с компонентом «Game development with C++».
   Linux: clang из комплекта движка.
