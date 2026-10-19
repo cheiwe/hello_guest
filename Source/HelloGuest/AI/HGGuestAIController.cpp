@@ -241,6 +241,7 @@ void AHGGuestAIController::CatchPlayer()
 
 	bCaught = true;
 	StopMovement();
+	Guest->PlayCatchAnimation();
 	Guest->OnCaughtPlayer();
 
 	if (AHGGameMode* GameMode = GetWorld()->GetAuthGameMode<AHGGameMode>())

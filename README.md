@@ -96,6 +96,11 @@ Content/                   ассеты Unreal
 - Формат: **FBX** (лучше всего для Unreal) или glTF/GLB. Модель и анимации на одном скелете.
 - Исходники класть в `SourceArt/Characters/<Имя>/`, импортировать в `Content/Characters/<Имя>/`.
 - Масштаб: 1 единица = 1 см, персонаж стоит на нуле, смотрит вдоль оси X.
+- Гость и сосед: положить `SourceArt/Characters/Guest/Guest.glb` и `SourceArt/Characters/Neighbor/Neighbor.glb`,
+  затем в редакторе **Tools → Execute Python Script…** → `Scripts/Editor/import_characters.py`.
+  Скрипт импортирует модели с анимациями и сам назначит Гостю модель и анимации
+  (Project Settings → Game → Hello Guest → Guest | Model). Если модель повёрнута боком,
+  поменяйте там `Character Mesh Yaw Offset` (−90 / 0 / 90 / 180).
 
 ## Резервные копии
 

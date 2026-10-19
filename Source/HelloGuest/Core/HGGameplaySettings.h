@@ -6,6 +6,8 @@
 #include "HGGameplaySettings.generated.h"
 
 class USoundBase;
+class USkeletalMesh;
+class UAnimSequence;
 
 /**
  * All tuning values of the game. Edited in Project Settings > Game > Hello Guest
@@ -144,6 +146,37 @@ public:
 	/** Progress flags that raise the Guest's activity phase (see Docs/PLAN.md). */
 	UPROPERTY(Config, EditAnywhere, Category = "Guest|Phases")
 	TArray<FHGGuestPhaseRule> GuestPhaseRules;
+
+	// --- Guest model ----------------------------------------------------------
+	// Filled by Scripts/Editor/import_characters.py. Empty = grey placeholder cylinder.
+
+	UPROPERTY(Config, EditAnywhere, Category = "Guest|Model")
+	TSoftObjectPtr<USkeletalMesh> GuestMesh;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Guest|Model")
+	TSoftObjectPtr<UAnimSequence> GuestIdleAnim;
+
+	/** Optional: when empty, the run animation is played slower for walking. */
+	UPROPERTY(Config, EditAnywhere, Category = "Guest|Model")
+	TSoftObjectPtr<UAnimSequence> GuestWalkAnim;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Guest|Model")
+	TSoftObjectPtr<UAnimSequence> GuestRunAnim;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Guest|Model")
+	TSoftObjectPtr<UAnimSequence> GuestSearchAnim;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Guest|Model")
+	TSoftObjectPtr<UAnimSequence> GuestCatchAnim;
+
+	/** Rotation that makes an imported mesh face the actor's forward axis. */
+	UPROPERTY(Config, EditAnywhere, Category = "Guest|Model", meta = (Units = "deg"))
+	float CharacterMeshYawOffset = -90.f;
+
+	/** Used by the import script; also writes the values to Config/DefaultGame.ini. */
+	UFUNCTION(BlueprintCallable, Category = "Hello Guest|Settings")
+	static void SetGuestAssets(USkeletalMesh* Mesh, UAnimSequence* Idle, UAnimSequence* Walk, UAnimSequence* Run,
+		UAnimSequence* Search, UAnimSequence* Catch);
 
 	// --- Death --------------------------------------------------------------
 

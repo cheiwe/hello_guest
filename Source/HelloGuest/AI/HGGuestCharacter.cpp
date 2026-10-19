@@ -2,7 +2,10 @@
 #include "AI/HGGuestAIController.h"
 #include "Interaction/HGDoor.h"
 #include "Core/HGGameplaySettings.h"
+#include "Animation/AnimSequence.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
@@ -12,7 +15,9 @@
 
 AHGGuestCharacter::AHGGuestCharacter()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	// Ticks only once a real model is set up (animation switching).
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = false;
 
 	// 2.3 m tall.
 	GetCapsuleComponent()->InitCapsuleSize(40.f, 115.f);
@@ -41,6 +46,7 @@ void AHGGuestCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	HomeTransform = GetActorTransform();
+	SetupModel();
 
 	// The Guest is not stopped by doors: unlocked ones swing open, locked ones he simply passes.
 	for (TActorIterator<AHGDoor> It(GetWorld()); It; ++It)
@@ -124,6 +130,8 @@ void AHGGuestCharacter::ResetToHome()
 	GetWorldTimerManager().ClearTimer(SlowTimer);
 	GetWorldTimerManager().ClearTimer(NeutralizeTimer);
 	SlowMultiplier = 1.f;
+	bPlayingCatch = false;
+	CurrentAnim = nullptr;
 	SetActorHiddenInGame(false);
 	SetActorEnableCollision(true);
 	bIncapacitated = false;
@@ -134,5 +142,95 @@ void AHGGuestCharacter::ResetToHome()
 	if (AHGGuestAIController* AI = Cast<AHGGuestAIController>(GetController()))
 	{
 		AI->ResetToPatrol();
+	}
+}
+
+void AHGGuestCharacter::SetupModel()
+{
+	const UHGGameplaySettings* Settings = UHGGameplaySettings::Get();
+	USkeletalMesh* SkeletalMesh = Settings->GuestMesh.LoadSynchronous();
+	if (!SkeletalMesh)
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComponent = GetMesh();
+	MeshComponent->SetSkeletalMeshAsset(SkeletalMesh);
+	MeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+
+	// Fit the model to the capsule height and stand it on the capsule bottom.
+	const float HalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	const float ModelHeight = SkeletalMesh->GetImportedBounds().BoxExtent.Z * 2.f;
+	const float Scale = ModelHeight > 1.f ? (HalfHeight * 2.f) / ModelHeight : 1.f;
+	MeshComponent->SetRelativeScale3D(FVector(Scale));
+	MeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -HalfHeight));
+	MeshComponent->SetRelativeRotation(FRotator(0.f, Settings->CharacterMeshYawOffset, 0.f));
+
+	PlaceholderBody->SetVisibility(false);
+
+	IdleAnim = Settings->GuestIdleAnim.LoadSynchronous();
+	WalkAnim = Settings->GuestWalkAnim.LoadSynchronous();
+	RunAnim = Settings->GuestRunAnim.LoadSynchronous();
+	SearchAnim = Settings->GuestSearchAnim.LoadSynchronous();
+	CatchAnim = Settings->GuestCatchAnim.LoadSynchronous();
+
+	SetActorTickEnabled(true);
+}
+
+void AHGGuestCharacter::PlayLoop(UAnimSequence* Anim, float PlayRate)
+{
+	if (Anim && Anim != CurrentAnim)
+	{
+		GetMesh()->PlayAnimation(Anim, true);
+		CurrentAnim = Anim;
+	}
+	GetMesh()->SetPlayRate(PlayRate);
+}
+
+void AHGGuestCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if (bPlayingCatch)
+	{
+		return;
+	}
+
+	const float Speed = GetVelocity().Size2D();
+	const UHGGameplaySettings* Settings = UHGGameplaySettings::Get();
+	const AHGGuestAIController* AI = Cast<AHGGuestAIController>(GetController());
+
+	if (!bIncapacitated && Speed > 10.f)
+	{
+		if (Speed > Settings->PatrolSpeed * 1.15f && RunAnim)
+		{
+			PlayLoop(RunAnim, 1.f);
+		}
+		else if (WalkAnim)
+		{
+			PlayLoop(WalkAnim, 1.f);
+		}
+		else
+		{
+			PlayLoop(RunAnim, 0.6f);
+		}
+	}
+	else if (AI && AI->GetGuestState() == EHGGuestState::Search && SearchAnim)
+	{
+		PlayLoop(SearchAnim, 1.f);
+	}
+	else
+	{
+		PlayLoop(IdleAnim, 1.f);
+	}
+}
+
+void AHGGuestCharacter::PlayCatchAnimation()
+{
+	if (CatchAnim)
+	{
+		bPlayingCatch = true;
+		GetMesh()->PlayAnimation(CatchAnim, false);
+		CurrentAnim = CatchAnim;
 	}
 }

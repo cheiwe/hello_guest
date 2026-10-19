@@ -5,6 +5,7 @@
 #include "HGGuestCharacter.generated.h"
 
 class UStaticMeshComponent;
+class UAnimSequence;
 
 /** The Guest. Behaviour lives in AHGGuestAIController; this class holds the body, speed and status effects. */
 UCLASS()
@@ -39,6 +40,11 @@ public:
 	/** Back to the spawn point and calm, used after the player respawns or loads a save. */
 	void ResetToHome();
 
+	/** Plays the capture animation once (called when the player is caught). */
+	void PlayCatchAnimation();
+
+	virtual void Tick(float DeltaSeconds) override;
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hello Guest|Guest")
 	void OnChaseStarted();
 
@@ -59,6 +65,10 @@ protected:
 	TObjectPtr<UStaticMeshComponent> PlaceholderBody;
 
 private:
+	/** Swaps the placeholder for the imported skeletal mesh, if one is set in the settings. */
+	void SetupModel();
+	void PlayLoop(UAnimSequence* Anim, float PlayRate);
+
 	void SetIncapacitated(bool bValue);
 	void EndStun();
 	void EndSlow();
@@ -68,6 +78,14 @@ private:
 	float BaseSpeed = 0.f;
 	float SlowMultiplier = 1.f;
 	bool bIncapacitated = false;
+	bool bPlayingCatch = false;
+
+	UPROPERTY() TObjectPtr<UAnimSequence> IdleAnim;
+	UPROPERTY() TObjectPtr<UAnimSequence> WalkAnim;
+	UPROPERTY() TObjectPtr<UAnimSequence> RunAnim;
+	UPROPERTY() TObjectPtr<UAnimSequence> SearchAnim;
+	UPROPERTY() TObjectPtr<UAnimSequence> CatchAnim;
+	UPROPERTY() TObjectPtr<UAnimSequence> CurrentAnim;
 
 	FTimerHandle StunTimer;
 	FTimerHandle SlowTimer;
