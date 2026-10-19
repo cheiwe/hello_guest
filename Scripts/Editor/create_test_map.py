@@ -3,6 +3,7 @@ Builds the grey-box test level /Game/Maps/L_Sandbox for Hello Guest.
 
 Run in the Unreal Editor: Tools > Execute Python Script... > select this file
 (or in the Output Log, Python mode: py "<project>/Scripts/Editor/create_test_map.py").
+Running it again rebuilds the level from scratch.
 
 The level contains the player's spawn, a simple neighbour house with the two restricted
 entrance rooms, the Guest with patrol points, and test items: crowbar, boards, scissors,
@@ -90,10 +91,14 @@ def door_lock(lock_id, key_item, requires=(), blocked_by=None):
 
 def build():
     if unreal.EditorAssetLibrary.does_asset_exist(MAP_PATH):
-        unreal.log_warning("%s already exists. Delete it first to rebuild the test level." % MAP_PATH)
-        return
-
-    if not level_editor.new_level(MAP_PATH):
+        # Rebuild an existing (possibly empty or broken) level from scratch.
+        if not level_editor.load_level(MAP_PATH):
+            raise RuntimeError("Could not open " + MAP_PATH)
+        old = [a for a in actors.get_all_level_actors() if not isinstance(a, (unreal.WorldSettings, unreal.Brush))]
+        if old:
+            actors.destroy_actors(old)
+        unreal.log("Hello Guest: cleared %d actors from %s, rebuilding" % (len(old), MAP_PATH))
+    elif not level_editor.new_level(MAP_PATH):
         raise RuntimeError("Could not create " + MAP_PATH)
 
     # --- Lighting and sky ---------------------------------------------------------
