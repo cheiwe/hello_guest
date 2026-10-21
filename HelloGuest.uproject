@@ -22,6 +22,54 @@
 		{
 			"Name": "EditorScriptingUtilities",
 			"Enabled": true
+		},
+		{
+			"Name": "ModelContextProtocol",
+			"Enabled": true
+		},
+		{
+			"Name": "EditorToolset",
+			"Enabled": true
+		},
+		{
+			"Name": "AIModuleToolset",
+			"Enabled": true
+		},
+		{
+			"Name": "StateTreeToolset",
+			"Enabled": true
+		},
+		{
+			"Name": "UMGToolSet",
+			"Enabled": true
+		},
+		{
+			"Name": "NiagaraToolsets",
+			"Enabled": true
+		},
+		{
+			"Name": "AnimationAssistantToolset",
+			"Enabled": true
+		},
+		{
+			"Name": "ConfigSettingsToolset",
+			"Enabled": true
+		},
+		{
+			"Name": "PhysicsToolsets",
+			"Enabled": true
+		},
+		{
+			"Name": "AutomationTestToolset",
+			"Enabled": true
+		},
+		{
+			"Name": "LiveCodingToolset",
+			"Enabled": true
+		},
+		{
+			"Name": "MCPClientToolset",
+			"Enabled": true
 		}
 	]
 }
