@@ -4,14 +4,18 @@ Imports the Guest and the Neighbor from SourceArt/Characters/<Name>/<Name>.glb i
 Guest's mesh and animations in Project Settings > Game > Hello Guest.
 
 Run in the Unreal Editor: Tools > Execute Python Script... > select this file.
-Re-running re-imports and overwrites the assets.
+Re-running re-imports and overwrites the assets. Root motion is removed from the animations
+(see lock_root_motion).
 
 If the test level /Game/Maps/L_Sandbox is open, a preview of the Neighbor playing his idle
 animation is placed in front of his house (only to look at the model; in the game the Neighbor
 appears in the intro and the final video).
 """
 
+import json
 import os
+import struct
+
 import unreal
 
 CHARACTERS = {
@@ -29,11 +33,67 @@ GUEST_ANIMS = {
 }
 
 
+# The animations come from a game that moves characters with root motion: the root bone
+# travels forward (13.8 m per run cycle) and the model drifts away from the capsule, then
+# snaps back. The game moves the capsule itself, so root bone translation is frozen before
+# import. The source .glb is not modified; a processed copy goes to Saved/HelloGuestImport.
+ROOT_BONE_PREFIXES = ("root", "GLTF_created")
+
+
+def lock_root_motion(source, destination, prefixes=ROOT_BONE_PREFIXES):
+    """Copies a .glb, freezing the translation of the root bones in every animation."""
+    data = bytearray(open(source, "rb").read())
+    json_length = struct.unpack_from("<I", data, 12)[0]
+    gltf = json.loads(bytes(data[20:20 + json_length]))
+    bin_offset = 20 + json_length + 8
+
+    nodes = gltf["nodes"]
+    accessors = gltf["accessors"]
+    views = gltf["bufferViews"]
+    locked = set()
+    for animation in gltf.get("animations", []):
+        for channel in animation["channels"]:
+            target = channel["target"]
+            name = nodes[target["node"]].get("name", "")
+            if target["path"] != "translation" or not name.startswith(prefixes):
+                continue
+            index = animation["samplers"][channel["sampler"]]["output"]
+            if index in locked:
+                continue
+            accessor = accessors[index]
+            if accessor.get("componentType") != 5126 or accessor.get("type") != "VEC3" or "sparse" in accessor:
+                continue
+            view = views[accessor["bufferView"]]
+            start = bin_offset + view.get("byteOffset", 0) + accessor.get("byteOffset", 0)
+            stride = view.get("byteStride", 12)
+            first = struct.unpack_from("<3f", data, start)
+            for i in range(1, accessor["count"]):
+                struct.pack_into("<3f", data, start + i * stride, *first)
+            accessor["min"] = list(first)
+            accessor["max"] = list(first)
+            locked.add(index)
+
+    # Rewrite the JSON chunk (padded with spaces to a multiple of 4).
+    new_json = json.dumps(gltf, separators=(",", ":")).encode("utf-8")
+    new_json += b" " * ((4 - len(new_json) % 4) % 4)
+    rest = data[20 + json_length:]
+    out = bytearray(struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(new_json) + len(rest)))
+    out += struct.pack("<II", len(new_json), 0x4E4F534A) + new_json + rest
+    open(destination, "wb").write(out)
+    return len(locked)
+
+
 def import_glb(name, relative_path):
-    source = os.path.join(unreal.Paths.project_dir(), relative_path)
-    if not os.path.exists(source):
-        unreal.log_warning("Hello Guest: %s not found, skipping %s" % (source, name))
+    original = os.path.join(unreal.Paths.project_dir(), relative_path)
+    if not os.path.exists(original):
+        unreal.log_warning("Hello Guest: %s not found, skipping %s" % (original, name))
         return None
+
+    work_dir = os.path.join(unreal.Paths.project_saved_dir(), "HelloGuestImport")
+    os.makedirs(work_dir, exist_ok=True)
+    source = os.path.join(work_dir, os.path.basename(original))
+    locked = lock_root_motion(original, source)
+    unreal.log("Hello Guest: %s - root motion removed from %d animation tracks" % (name, locked))
 
     destination = "/Game/Characters/" + name
     task = unreal.AssetImportTask()
