@@ -1,0 +1,201 @@
+{
+  "note": "Blender metres/degrees relative to SM_RadioStation's pivot; Unreal: x*100, -y*100, z*100",
+  "sockets": [
+    {
+      "name": "Toggle1",
+      "mesh": "SM_Radio_Toggle",
+      "location": [
+        -0.26500000000000007,
+        -0.7581705948797903,
+        0.7204264871994757
+      ],
+      "rotation": [
+        21.80140948635181,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Toggle2",
+      "mesh": "SM_Radio_Toggle",
+      "location": [
+        -0.07500000000000007,
+        -0.7581705948797903,
+        0.7204264871994757
+      ],
+      "rotation": [
+        21.80140948635181,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Toggle3",
+      "mesh": "SM_Radio_Toggle",
+      "location": [
+        0.11499999999999994,
+        -0.7581705948797903,
+        0.7204264871994757
+      ],
+      "rotation": [
+        21.80140948635181,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Toggle4",
+      "mesh": "SM_Radio_Toggle",
+      "location": [
+        0.305,
+        -0.7581705948797903,
+        0.7204264871994757
+      ],
+      "rotation": [
+        21.80140948635181,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Toggle5",
+      "mesh": "SM_Radio_Toggle",
+      "location": [
+        0.49499999999999994,
+        -0.7581705948797903,
+        0.7204264871994757
+      ],
+      "rotation": [
+        21.80140948635181,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Toggle6",
+      "mesh": "SM_Radio_Toggle",
+      "location": [
+        0.6849999999999998,
+        -0.7581705948797903,
+        0.7204264871994757
+      ],
+      "rotation": [
+        21.80140948635181,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Toggle7",
+      "mesh": "SM_Radio_Toggle",
+      "location": [
+        0.875,
+        -0.7581705948797903,
+        0.7204264871994757
+      ],
+      "rotation": [
+        21.80140948635181,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Toggle8",
+      "mesh": "SM_Radio_Toggle",
+      "location": [
+        1.065,
+        -0.7581705948797903,
+        0.7204264871994757
+      ],
+      "rotation": [
+        21.80140948635181,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Beacon1",
+      "mesh": "SM_Radio_Beacon",
+      "location": [
+        0.55,
+        -0.33,
+        2.0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Beacon2",
+      "mesh": "SM_Radio_Beacon",
+      "location": [
+        0.8,
+        -0.33,
+        2.0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Beacon3",
+      "mesh": "SM_Radio_Beacon",
+      "location": [
+        1.05,
+        -0.33,
+        2.0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "RedBox",
+      "mesh": "SM_Radio_RedBox",
+      "location": [
+        -0.8,
+        -0.21,
+        1.02
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "RedBoxDoor",
+      "mesh": "SM_Radio_RedBoxDoor",
+      "location": [
+        -0.93,
+        -0.35,
+        1.02
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "GrillDoor",
+      "mesh": "SM_Radio_GrillDoor",
+      "location": [
+        -1.0899999999999999,
+        -0.49,
+        0.75
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

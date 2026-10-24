@@ -20,7 +20,7 @@ TEXTURES = ART + "/Textures"
 MASTER = MATERIALS + "/M_HG_Master"
 
 # Categories of SourceArt/Models to import into /Game/Art/<Category>.
-MODEL_CATEGORIES = ["Hallway", "Props", "Exterior", "Study", "Rooms"]
+MODEL_CATEGORIES = ["Hallway", "Props", "Exterior", "Study", "Rooms", "Attic", "Basement", "PlayerRoom"]
 
 PH = TEXTURES + "/PolyHaven"
 ST = TEXTURES + "/Stylized"
@@ -104,6 +104,52 @@ LOOKS = {
     "BulbGlass": dict(tint=(0.95, 0.95, 0.9), rough=0.1),
     "CautionTape": dict(tex=ST + "/T_CautionTape_D", uv=1.0, rough=0.5),
     "BloodTrail": dict(tex=ST + "/T_BloodTrail_D", uv=1.0, rough=0.3, masked=True),
+    # Attic radio station (Attic_Radio). Screens glow with their own picture.
+    "ConsoleMetal": dict(tex="painted_plaster_wall", uv=0.6, tint=(0.58, 0.64, 0.68), metallic=0.5, rough=0.45),
+    "ScreenTerminal": dict(tex=ST + "/T_Screen_Terminal_D", uv=1.0, rough=0.1, emissive=(1, 1, 1), emissive_strength=3.0, emissive_tex=True),
+    "ScreenWave": dict(tex=ST + "/T_Screen_Wave_D", uv=1.0, rough=0.1, emissive=(1, 1, 1), emissive_strength=3.0, emissive_tex=True),
+    "ScreenAmber": dict(tex=ST + "/T_Screen_Amber_D", uv=1.0, rough=0.1, emissive=(1, 1, 1), emissive_strength=3.0, emissive_tex=True),
+    "ScreenStatic": dict(tex=ST + "/T_Screen_Static_D", uv=1.0, rough=0.1, emissive=(1, 1, 1), emissive_strength=2.5, emissive_tex=True),
+    "TubeGlow": dict(tint=(1.0, 0.6, 0.25), rough=0.2, emissive=(1.0, 0.42, 0.08), emissive_strength=3.5),
+    "BeaconRed": dict(tint=(0.9, 0.1, 0.05), rough=0.2, emissive=(1.0, 0.08, 0.03), emissive_strength=6.0),
+    "LedGreen": dict(tint=(0.2, 0.9, 0.3), rough=0.3, emissive=(0.2, 1.0, 0.3), emissive_strength=4.0),
+    "LedRed": dict(tint=(0.9, 0.15, 0.1), rough=0.3, emissive=(1.0, 0.1, 0.05), emissive_strength=4.0),
+    "Gauge": dict(tex="painted_plaster_wall", uv=4.0, tint=(1.0, 0.95, 0.8), rough=0.4),
+    "Cable": dict(tint=(0.06, 0.055, 0.05), rough=0.5),
+    "CableRed": dict(tint=(0.5, 0.08, 0.05), rough=0.5),
+    "CableGreen": dict(tint=(0.15, 0.32, 0.15), rough=0.5),
+    # Basements (Basement_Fusebox, Secret_Basement). ScreenRecording is the monitor that plays the
+    # recording in the finale; until the sequence feeds it, it shows static.
+    "ScreenRecording": dict(tex=ST + "/T_Screen_Static_D", uv=1.0, rough=0.1, emissive=(1, 1, 1), emissive_strength=2.5, emissive_tex=True),
+    "Sheet": dict(tex="painted_plaster_wall", uv=0.8, tint=(0.95, 0.95, 0.9), rough=0.95),
+    "Water": dict(tint=(0.02, 0.03, 0.035), rough=0.05, metallic=0.2),
+    "Rubber": dict(tint=(0.04, 0.04, 0.04), rough=0.8),
+    "VHS": dict(tint=(0.035, 0.035, 0.04), rough=0.35),
+    "PlasticBeige": dict(tex="painted_plaster_wall", uv=3.0, tint=(0.62, 0.58, 0.5), rough=0.45),
+    # Player's room (Player_Room).
+    "Poster_Beats": dict(tex=ST + "/T_Poster_Beats_D", uv=1.0, rough=0.7),
+    "Poster_AstroBoy": dict(tex=ST + "/T_Poster_AstroBoy_D", uv=1.0, rough=0.7),
+    "Poster_Robot": dict(tex=ST + "/T_Poster_Robot_D", uv=1.0, rough=0.7),
+    "Poster_Attack": dict(tex=ST + "/T_Poster_Attack_D", uv=1.0, rough=0.7),
+    "Poster_DarkWoods": dict(tex=ST + "/T_Poster_DarkWoods_D", uv=1.0, rough=0.7),
+    "Poster_Aircraft": dict(tex=ST + "/T_Poster_Aircraft_D", uv=1.0, rough=0.7),
+    "Poster_Cat": dict(tex=ST + "/T_Poster_Cat_D", uv=1.0, rough=0.7),
+    "Poster_Fighters": dict(tex=ST + "/T_Poster_Fighters_D", uv=1.0, rough=0.7),
+    "Comic": dict(tex=ST + "/T_Comic_Cover_D", uv=1.0, rough=0.7),
+    "Rug_Player": dict(tex=ST + "/T_Rug_Player_D", uv=1.0, rough=0.95),
+    "Wallpaper_Stripe": dict(tex=ST + "/T_Wallpaper_Stripe_D", normal=PH + "/painted_plaster_wall/painted_plaster_wall_nor_dx_2k", uv=1.2, rough=0.85),
+    "Cork": dict(tex=ST + "/T_Cardboard_D", uv=4.0, tint=(1.0, 0.75, 0.5), rough=0.95),
+    "Blanket_Grey": dict(tex="painted_plaster_wall", uv=1.0, tint=(0.62, 0.66, 0.7), rough=0.95),
+    "PillowRed": dict(tint=(0.7, 0.22, 0.2), rough=0.95),
+    "PillowYellow": dict(tint=(0.92, 0.72, 0.2), rough=0.95),
+    "Throw": dict(tex=ST + "/T_Rug_Runner_D", uv=2.0, tint=(1.2, 1.1, 1.0), rough=0.95),
+    "ClothGreen": dict(tint=(0.28, 0.42, 0.22), rough=0.95),
+    "ClothBlue": dict(tint=(0.25, 0.35, 0.55), rough=0.95),
+    "Chrome": dict(tint=(0.85, 0.85, 0.85), metallic=1.0, rough=0.2),
+    "Vinyl": dict(tint=(0.55, 0.58, 0.6), rough=0.45),
+    "TinBlue": dict(tint=(0.25, 0.45, 0.7), metallic=0.6, rough=0.35),
+    "TinGreen": dict(tint=(0.25, 0.45, 0.3), metallic=0.4, rough=0.5),
+    "Skin": dict(tint=(0.9, 0.68, 0.52), rough=0.6),
     # Characters: the UVs point into the concept sheet itself.
     "Vitec": dict(tex=ST + "/T_Vitec_Sheet_D", uv=1.0, rough=0.75),
 }
@@ -152,8 +198,8 @@ def import_textures():
 
 # Bump when the master graph changes: masters are created once per version (a loaded, referenced
 # material can be neither deleted nor safely rebuilt in place), instances are re-parented to the new one.
-MASTER_VERSION = 2
-OLD_MASTERS = ["M_HG_Master", "M_HG_Masked"]
+MASTER_VERSION = 3
+OLD_MASTERS = ["M_HG_Master", "M_HG_Masked", "M_HG_Base_v2", "M_HG_BaseMasked_v2"]
 
 
 def build_master(name="M_HG_Base", masked=False):
@@ -226,7 +272,20 @@ def build_master(name="M_HG_Base", masked=False):
     emissive = expr(unreal.MaterialExpressionMultiply, -350, 650)
     mel.connect_material_expressions(emissive_color, "RGB", emissive, "A")
     mel.connect_material_expressions(emissive_strength, "", emissive, "B")
-    mel.connect_material_property(emissive, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    # EmissiveFromTex 1 makes the colour texture glow (monitor screens with text), 0 a flat glow.
+    from_tex = expr(unreal.MaterialExpressionScalarParameter, -600, 880)
+    from_tex.set_editor_property("parameter_name", "EmissiveFromTex")
+    from_tex.set_editor_property("default_value", 0.0)
+    white = expr(unreal.MaterialExpressionConstant3Vector, -600, 980)
+    white.set_editor_property("constant", unreal.LinearColor(1, 1, 1, 1))
+    glow_mask = expr(unreal.MaterialExpressionLinearInterpolate, -350, 900)
+    mel.connect_material_expressions(white, "", glow_mask, "A")
+    mel.connect_material_expressions(base_tex, "RGB", glow_mask, "B")
+    mel.connect_material_expressions(from_tex, "", glow_mask, "Alpha")
+    glow = expr(unreal.MaterialExpressionMultiply, -150, 700)
+    mel.connect_material_expressions(emissive, "", glow, "A")
+    mel.connect_material_expressions(glow_mask, "", glow, "B")
+    mel.connect_material_property(glow, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 
     mel.recompile_material(mat)
     eal.save_loaded_asset(mat)
@@ -262,6 +321,7 @@ def build_instances(master, masked_master):
         if look.get("emissive"):
             mel.set_material_instance_vector_parameter_value(mi, "EmissiveColor", unreal.LinearColor(*look["emissive"], 1))
             mel.set_material_instance_scalar_parameter_value(mi, "EmissiveStrength", look.get("emissive_strength", 1.0))
+            mel.set_material_instance_scalar_parameter_value(mi, "EmissiveFromTex", 1.0 if look.get("emissive_tex") else 0.0)
         eal.save_loaded_asset(mi)
     unreal.log("Hello Guest art: %d material instances" % len(LOOKS))
 

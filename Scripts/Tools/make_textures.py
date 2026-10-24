@@ -172,6 +172,100 @@ def blood_trail(width=1024, height=256):
     return img.filter(ImageFilter.GaussianBlur(3))
 
 
+def crt_screen(kind, width=320, height=256):
+    """
+    Monitor picture (glows through EmissiveFromTex): green terminal text, green waveform, amber text with
+    an arrow (Attic_Radio), or TV static (Secret_Basement). Dark glass, scanlines and a vignette.
+    """
+    from PIL import ImageFont
+    rnd = random.Random(kind)
+    green, amber = (90, 255, 120), (255, 185, 60)
+    colour = amber if kind == "amber" else green
+    img = Image.new("RGB", (width, height), (6, 16, 10) if kind != "amber" else (18, 12, 4))
+    d = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.truetype("consola.ttf", 17)
+    except OSError:
+        font = ImageFont.load_default()
+    if kind == "static":
+        noise = np.random.default_rng(7).random((height, width)) * 255
+        rows = np.random.default_rng(8).random(height)[:, None]
+        noise = noise * 0.75 + rows * 64
+        img = Image.fromarray(np.clip(noise, 0, 255).astype(np.uint8)).convert("RGB")
+        d = ImageDraw.Draw(img)
+        for _ in range(4):
+            y = rnd.randint(0, height)
+            d.rectangle((0, y, width, y + rnd.randint(2, 6)), fill=(230, 230, 230))
+    elif kind == "wave":
+        for x in range(0, width, 32):
+            d.line((x, 0, x, height), fill=(14, 60, 28))
+        for y in range(0, height, 32):
+            d.line((0, y, width, y), fill=(14, 60, 28))
+        pts = [(x, height * 0.45 + 50 * math.sin(x / 19.0) * math.sin(x / 71.0 + 1)) for x in range(0, width, 3)]
+        d.line(pts, fill=green, width=3)
+        for k in range(10):
+            h = rnd.randint(10, 60)
+            d.rectangle((16 + k * 29, height - 20 - h, 34 + k * 29, height - 20), fill=green)
+    else:
+        lines = ["SIGNAL  LOST", "FREQ 147.30 MHz", "> SCAN ........", "SECTOR 7  LOCK", "> RX %04X %04X" % (rnd.randint(0, 65535), rnd.randint(0, 65535)),
+                 "NO CARRIER", "> AWAIT ORDER_", "PWR ON  T-%02d" % rnd.randint(0, 99)]
+        rnd.shuffle(lines)
+        for i, line in enumerate(lines[:7 if kind == "terminal" else 4]):
+            d.text((16, 14 + i * 24), line, font=font, fill=colour)
+        if kind == "amber":
+            d.polygon([(70, 150), (190, 150), (190, 128), (250, 175), (190, 222), (190, 200), (70, 200)], fill=amber)
+    # Scanlines, glow and a dark rim like curved glass.
+    arr = np.asarray(img.filter(ImageFilter.GaussianBlur(0.8)), dtype=np.float32)
+    glow = np.asarray(img.filter(ImageFilter.GaussianBlur(6)), dtype=np.float32)
+    arr = arr * 0.8 + glow * 0.6
+    arr[::3] *= 0.7
+    yy, xx = np.mgrid[0:height, 0:width]
+    r = np.sqrt(((xx - width / 2) / (width / 2)) ** 2 + ((yy - height / 2) / (height / 2)) ** 2)
+    arr *= np.clip(1.25 - 0.55 * r ** 2, 0, 1)[..., None]
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+
+
+def poster(box, size=(400, 600)):
+    """A poster cut out of Player_Room, brightened a little (the concept is lit by a dim desk lamp)."""
+    from PIL import ImageOps
+    img = crop_concept("Player_Room.jpg", box, size)
+    return ImageOps.autocontrast(img, cutoff=1)
+
+
+def player_rug(width=1024, height=640):
+    """Striped rag rug from Player_Room: teal border, cream and orange bands, green field, red centre, fringe."""
+    img = Image.new("RGB", (width, height), (40, 95, 110))
+    d = ImageDraw.Draw(img)
+    bands = [(0.05, (225, 205, 160)), (0.08, (230, 120, 40)), (0.12, (90, 140, 60)), (0.3, (200, 80, 40))]
+    for inset, colour in bands:
+        d.rectangle((width * inset * 0.8, height * inset, width * (1 - inset * 0.8), height * (1 - inset)), fill=colour)
+    d.rectangle((width * 0.42, height * 0.4, width * 0.58, height * 0.6), fill=(235, 150, 50))
+    for x in range(0, width, 9):
+        d.line((x, 0, x + 3, height * 0.03), fill=(225, 210, 175), width=3)
+        d.line((x, height, x + 3, height * 0.97), fill=(225, 210, 175), width=3)
+    # Woven texture: fine horizontal threads.
+    arr = np.asarray(img, dtype=np.float32)
+    arr *= (0.9 + 0.1 * np.sin(np.arange(height) * 1.7))[:, None, None]
+    return age(Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8)), 71, 0.12)
+
+
+def wallpaper_stripe(size=1024):
+    """Warm beige wallpaper with soft vertical stripes and small damask diamonds (Player_Room)."""
+    img = Image.new("RGB", (size, size), (214, 168, 112))
+    d = ImageDraw.Draw(img)
+    stripe = size // 8
+    for k in range(8):
+        x = k * stripe
+        d.rectangle((x, 0, x + stripe * 0.18, size), fill=(200, 150, 96))
+        d.rectangle((x + stripe * 0.24, 0, x + stripe * 0.28, size), fill=(226, 184, 128))
+        for j in range(4):
+            cx, cy = x + stripe * 0.62, j * size / 4 + (size / 8 if k % 2 else 0)
+            s = stripe * 0.18
+            d.polygon([(cx, cy - s * 1.6), (cx + s, cy), (cx, cy + s * 1.6), (cx - s, cy)], fill=(196, 146, 92))
+            d.ellipse((cx - s * 0.35, cy - s * 0.35, cx + s * 0.35, cy + s * 0.35), fill=(220, 176, 120))
+    return age(img.filter(ImageFilter.GaussianBlur(1.2)), 81, 0.12)
+
+
 def portrait_clue():
     """
     The puzzle painting: the man at his desk with an inkwell, a book and a globe, left to right
@@ -248,6 +342,23 @@ def main():
         # Old photos from Hallway_01 (pixel boxes in the original 2752x1536 image).
         "T_Photo_Couple_D": crop_concept("Hallway_01.jpg", (160, 318, 328, 716)),
         "T_Photo_Woman_D": crop_concept("Hallway_01.jpg", (2485, 350, 2628, 742)),
+        # Monitor screens (attic radio station, secret basement).
+        "T_Screen_Terminal_D": crt_screen("terminal"),
+        "T_Screen_Wave_D": crt_screen("wave"),
+        "T_Screen_Amber_D": crt_screen("amber"),
+        "T_Screen_Static_D": crt_screen("static"),
+        # Player's room: posters cut out of the concept, striped rug, wallpaper.
+        "T_Poster_Beats_D": poster((1245, 275, 1438, 500)),
+        "T_Poster_AstroBoy_D": poster((1452, 296, 1585, 564)),
+        "T_Poster_Robot_D": poster((1682, 305, 1847, 626)),
+        "T_Poster_Attack_D": poster((1867, 220, 2057, 560)),
+        "T_Poster_DarkWoods_D": poster((1833, 589, 2006, 864)),
+        "T_Poster_Aircraft_D": poster((1717, 655, 1830, 842)),
+        "T_Poster_Cat_D": poster((1139, 641, 1260, 831)),
+        "T_Poster_Fighters_D": poster((34, 626, 245, 881)),
+        "T_Comic_Cover_D": poster((2360, 151, 2511, 319), (400, 520)),
+        "T_Rug_Player_D": player_rug(),
+        "T_Wallpaper_Stripe_D": wallpaper_stripe(),
         # Linear white: default roughness map of the master material (imported without sRGB).
         "T_Default_Linear": Image.new("RGB", (8, 8), (255, 255, 255)),
     }

@@ -86,6 +86,41 @@ PALETTE = {
     "BulbGlass": (0.92, 0.92, 0.88),
     "CautionTape": (0.92, 0.78, 0.15),
     "BloodTrail": (0.35, 0.03, 0.02),
+    "ConsoleMetal": (0.52, 0.55, 0.55),
+    "ScreenTerminal": (0.20, 0.75, 0.30),
+    "ScreenAmber": (0.95, 0.65, 0.15),
+    "ScreenWave": (0.20, 0.80, 0.35),
+    "ScreenStatic": (0.75, 0.78, 0.80),
+    "TubeGlow": (1.00, 0.62, 0.20),
+    "BeaconRed": (0.95, 0.12, 0.05),
+    "LedGreen": (0.20, 0.95, 0.30),
+    "LedRed": (0.95, 0.15, 0.10),
+    "Gauge": (0.90, 0.86, 0.72),
+    "Cable": (0.10, 0.09, 0.08),
+    "CableRed": (0.55, 0.12, 0.08),
+    "CableGreen": (0.18, 0.35, 0.18),
+    "Sheet": (0.70, 0.70, 0.66),
+    "Water": (0.05, 0.08, 0.09),
+    "Rubber": (0.06, 0.06, 0.06),
+    "VHS": (0.06, 0.06, 0.07),
+    "PlasticBeige": (0.78, 0.74, 0.64),
+    "Poster": (0.80, 0.70, 0.50),
+    "Cork": (0.62, 0.45, 0.28),
+    "ScreenRecording": (0.75, 0.78, 0.80),
+    "Blanket_Grey": (0.60, 0.64, 0.68),
+    "PillowRed": (0.70, 0.22, 0.20),
+    "PillowYellow": (0.92, 0.72, 0.20),
+    "Throw": (0.70, 0.40, 0.30),
+    "ClothGreen": (0.28, 0.42, 0.22),
+    "ClothBlue": (0.25, 0.35, 0.55),
+    "Chrome": (0.85, 0.85, 0.85),
+    "Vinyl": (0.55, 0.58, 0.60),
+    "TinBlue": (0.25, 0.45, 0.70),
+    "TinGreen": (0.25, 0.45, 0.30),
+    "Skin": (0.90, 0.68, 0.52),
+    "Comic": (0.85, 0.30, 0.20),
+    "Rug_Player": (0.35, 0.55, 0.30),
+    "Wallpaper_Stripe": (0.84, 0.66, 0.44),
 }
 
 
@@ -176,6 +211,31 @@ def rod(name, start, end, radius, mat="MetalDark", coll=None, segments=8):
     obj.rotation_mode = "QUATERNION"
     obj.rotation_quaternion = Vector((0, 0, 1)).rotation_difference(direction.normalized())
     return obj
+
+
+def cable(name, points, radius, mat="Bakelite", coll=None, segments=6, resolution=6):
+    """Smooth tube through the points (wires, hoses, cable bundles): a NURBS curve with a bevel,
+    converted to a mesh."""
+    curve = bpy.data.curves.new(name, "CURVE")
+    curve.dimensions = "3D"
+    curve.bevel_depth = radius
+    curve.bevel_resolution = max(1, segments // 2 - 1)
+    curve.use_fill_caps = True
+    curve.resolution_u = resolution
+    spline = curve.splines.new("NURBS")
+    spline.points.add(len(points) - 1)
+    for p, co in zip(spline.points, points):
+        p.co = (*co, 1.0)
+    spline.use_endpoint_u = True
+    spline.order_u = min(4, len(points))
+    obj = bpy.data.objects.new(name, curve)
+    _link(obj, coll or bpy.context.scene.collection)
+    obj.data.materials.append(material(mat))
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.convert(target="MESH")
+    return bpy.context.view_layer.objects.active
 
 
 def sphere(name, radius, location=(0, 0, 0), mat="Brass", coll=None, segments=16, rings=8, scale=(1, 1, 1)):
@@ -271,15 +331,21 @@ def join(objects, name):
     return result
 
 
-def world_uv(obj, scale=1.0):
-    """Box-projected UVs in world units (1 UV = 1 m / scale) so tiling textures keep their size on any piece."""
+def world_uv(obj, scale=1.0, skip=()):
+    """Box-projected UVs in world units (1 UV = 1 m / scale) so tiling textures keep their size on any piece.
+    Faces with a material named in skip (without M_) keep their UVs (screens, labels mapped 0..1)."""
     mesh = obj.data
     if not mesh.uv_layers:
         mesh.uv_layers.new(name="UVMap")
+    if mesh.uv_layers.active is None:
+        mesh.uv_layers.active_index = 0
     uv = mesh.uv_layers.active.data
     matrix = obj.matrix_world
     normal_matrix = matrix.to_3x3().inverted().transposed()
+    skip_slots = {i for i, m in enumerate(mesh.materials) if m and m.name[2:] in skip}
     for poly in mesh.polygons:
+        if poly.material_index in skip_slots:
+            continue
         n = (normal_matrix @ poly.normal).normalized()
         ax, ay, az = abs(n.x), abs(n.y), abs(n.z)
         for li in poly.loop_indices:
@@ -321,6 +387,22 @@ def planar_uv(obj):
     for loop in mesh.loops:
         co = mesh.vertices[loop.vertex_index].co
         uv[loop.index].uv = ((co.x - x0) / (x1 - x0), (co.y - y0) / (y1 - y0))
+
+
+def face_uv(obj, axes="xz"):
+    """UVs 0..1 over the mesh's own bounds on two local axes (a screen or label shows one whole picture).
+    Call before join: it uses the local coordinates."""
+    mesh = obj.data
+    if not mesh.uv_layers:
+        mesh.uv_layers.new(name="UVMap")
+    uv = mesh.uv_layers.active.data
+    a, b = ("xyz".index(axes[0]), "xyz".index(axes[1]))
+    us = [v.co[a] for v in mesh.vertices]
+    vs = [v.co[b] for v in mesh.vertices]
+    u0, u1, v0, v1 = min(us), max(us), min(vs), max(vs)
+    for loop in mesh.loops:
+        co = mesh.vertices[loop.vertex_index].co
+        uv[loop.index].uv = ((co[a] - u0) / (u1 - u0), (co[b] - v0) / (v1 - v0))
 
 
 def apply_transforms(obj):
