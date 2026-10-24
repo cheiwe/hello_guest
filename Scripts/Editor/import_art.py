@@ -20,7 +20,7 @@ TEXTURES = ART + "/Textures"
 MASTER = MATERIALS + "/M_HG_Master"
 
 # Categories of SourceArt/Models to import into /Game/Art/<Category>.
-MODEL_CATEGORIES = ["Hallway", "Props", "Exterior", "Study"]
+MODEL_CATEGORIES = ["Hallway", "Props", "Exterior", "Study", "Rooms"]
 
 PH = TEXTURES + "/PolyHaven"
 ST = TEXTURES + "/Stylized"
@@ -85,7 +85,31 @@ LOOKS = {
     "Paper": dict(tint=(0.88, 0.84, 0.72), rough=0.9),
     "Leather": dict(tex="oak_wood_planks", uv=2.0, tint=(0.55, 0.3, 0.15), rough=0.55),
     "GlassGreen": dict(tint=(0.1, 0.5, 0.2), rough=0.2, emissive=(0.2, 0.9, 0.3), emissive_strength=1.5),
+    # Upstairs rooms.
+    "Gilt": dict(tint=(0.75, 0.55, 0.2), metallic=0.85, rough=0.35),
+    "GiltDark": dict(tint=(0.4, 0.28, 0.1), metallic=0.8, rough=0.45),
+    "Painting": dict(tex=ST + "/T_Painting_Apple1_D", uv=1.0, rough=0.6),
+    "Painting_Apple2": dict(tex=ST + "/T_Painting_Apple2_D", uv=1.0, rough=0.6),
+    "Painting_Apple3": dict(tex=ST + "/T_Painting_Apple3_D", uv=1.0, rough=0.6),
+    "Painting_Apple4": dict(tex=ST + "/T_Painting_Apple4_D", uv=1.0, rough=0.6),
+    "Painting_Apple5": dict(tex=ST + "/T_Painting_Apple5_D", uv=1.0, rough=0.6),
+    "Painting_Apple6": dict(tex=ST + "/T_Painting_Apple6_D", uv=1.0, rough=0.6),
+    "Painting_Portrait": dict(tex=ST + "/T_Painting_Portrait_D", uv=1.0, rough=0.6),
+    "WoodPaintedRed": dict(tex="oak_wood_planks", uv=0.8, tint=(0.75, 0.3, 0.22), rough=0.7),
+    "WoodPaintedRedDark": dict(tex="oak_wood_planks", uv=0.8, tint=(0.55, 0.2, 0.15), rough=0.7),
+    "Fabric_Light": dict(tint=(0.8, 0.78, 0.7), rough=0.95),
+    "Blanket": dict(tex=ST + "/T_Rug_Runner_D", uv=1.5, tint=(1.1, 0.95, 0.9), rough=0.95),
+    "Screen": dict(tint=(0.18, 0.22, 0.2), rough=0.15),
+    "Porcelain": dict(tint=(0.9, 0.88, 0.82), rough=0.3),
+    "BulbGlass": dict(tint=(0.95, 0.95, 0.9), rough=0.1),
+    "CautionTape": dict(tex=ST + "/T_CautionTape_D", uv=1.0, rough=0.5),
+    "BloodTrail": dict(tex=ST + "/T_BloodTrail_D", uv=1.0, rough=0.3, masked=True),
+    # Characters: the UVs point into the concept sheet itself.
+    "Vitec": dict(tex=ST + "/T_Vitec_Sheet_D", uv=1.0, rough=0.75),
 }
+
+# Skeletal characters: FBX with the mesh, the skeleton and all animations.
+CHARACTERS = [("Characters/Vitec/SK_Vitec.fbx", ART + "/Characters/Vitec")]
 
 asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
 mel = unreal.MaterialEditingLibrary
@@ -126,12 +150,21 @@ def import_textures():
 
 # --- Master material -------------------------------------------------------------------------------
 
-def build_master(name="M_HG_Master", masked=False):
+# Bump when the master graph changes: masters are created once per version (a loaded, referenced
+# material can be neither deleted nor safely rebuilt in place), instances are re-parented to the new one.
+MASTER_VERSION = 2
+OLD_MASTERS = ["M_HG_Master", "M_HG_Masked"]
+
+
+def build_master(name="M_HG_Base", masked=False):
     """Master material. The masked variant (chain-link, webs) cuts holes with the colour texture's alpha."""
+    name = "%s_v%d" % (name, MASTER_VERSION)
     path = MATERIALS + "/" + name
     if eal.does_asset_exist(path):
-        eal.delete_asset(path)
+        return unreal.load_asset(path)
     mat = asset_tools.create_asset(name, MATERIALS, unreal.Material, unreal.MaterialFactoryNew())
+    if mat is None:
+        raise RuntimeError("Could not create " + path)
     if masked:
         mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_MASKED)
         mat.set_editor_property("two_sided", True)
@@ -295,12 +328,71 @@ def import_meshes():
     unreal.log("Hello Guest art: %d meshes imported" % len(imported))
 
 
+def import_characters():
+    """Skeletal mesh + skeleton + animation sequences; material slots get MI_<slot> like the props."""
+    unreal.SystemLibrary.execute_console_command(None, "Interchange.FeatureFlags.Import.FBX false")
+    for rel, dest in CHARACTERS:
+        options = unreal.FbxImportUI()
+        options.set_editor_property("import_mesh", True)
+        options.set_editor_property("import_as_skeletal", True)
+        options.set_editor_property("import_animations", True)
+        options.set_editor_property("import_materials", False)
+        options.set_editor_property("import_textures", False)
+        options.set_editor_property("create_physics_asset", True)
+        options.set_editor_property("mesh_type_to_import", unreal.FBXImportType.FBXIT_SKELETAL_MESH)
+        options.skeletal_mesh_import_data.set_editor_property("convert_scene_unit", True)
+        options.skeletal_mesh_import_data.set_editor_property("normal_import_method", unreal.FBXNormalImportMethod.FBXNIM_IMPORT_NORMALS)
+        options.anim_sequence_import_data.set_editor_property("convert_scene_unit", True)
+        options.anim_sequence_import_data.set_editor_property("import_bone_tracks", True)
+
+        task = unreal.AssetImportTask()
+        task.filename = os.path.join(SOURCE_MODELS, rel)
+        task.destination_path = dest
+        task.replace_existing = True
+        task.automated = True
+        task.save = False
+        task.options = options
+        asset_tools.import_asset_tasks([task])
+
+        for path in task.imported_object_paths:
+            asset = unreal.load_asset(path)
+            if isinstance(asset, unreal.SkeletalMesh):
+                # The array holds copies of the structs: build new ones and set the whole array.
+                materials = []
+                for slot in asset.get_editor_property("materials"):
+                    look = str(slot.material_slot_name)
+                    look = look[2:] if look.startswith("M_") else look
+                    mi_path = MATERIALS + "/MI_" + look
+                    materials.append(unreal.SkeletalMaterial(
+                        material_interface=unreal.load_asset(mi_path) if eal.does_asset_exist(mi_path) else slot.material_interface,
+                        material_slot_name=slot.material_slot_name))
+                asset.set_editor_property("materials", materials)
+            eal.save_loaded_asset(asset)
+        # The task lists only the mesh; the skeleton, physics asset and animations need saving too.
+        eal.save_directory(dest, only_if_is_dirty=True)
+        unreal.log("Hello Guest art: character %s -> %s" % (rel, [str(p) for p in task.imported_object_paths]))
+
+
 def main():
+    # Work from a level that does not use the art, so materials and meshes can be replaced.
+    level_editor = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
+    previous = level_editor.get_current_level().get_outermost().get_name()
+    level_editor.load_level("/Game/Maps/L_Sandbox")
+
     import_textures()
     master = build_master()
-    masked_master = build_master("M_HG_Masked", masked=True)
+    masked_master = build_master("M_HG_BaseMasked", masked=True)
     build_instances(master, masked_master)
+    # Masters of older versions are unreferenced now.
+    for asset in eal.list_assets(MATERIALS, recursive=False):
+        short = asset.split("/")[-1].split(".")[0]
+        if (short in OLD_MASTERS or short.startswith(("M_HG_Base_v", "M_HG_BaseMasked_v"))) and short not in (master.get_name(), masked_master.get_name()):
+            if not eal.delete_asset(asset.split(".")[0]):
+                unreal.log_warning("Hello Guest art: old master %s is still referenced" % short)
     import_meshes()
+    import_characters()
+    if previous != "/Game/Maps/L_Sandbox":
+        level_editor.load_level(previous)
 
 
 main()
