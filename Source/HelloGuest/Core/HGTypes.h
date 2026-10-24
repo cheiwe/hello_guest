@@ -33,7 +33,9 @@ enum class EHGGuestState : uint8
 	Investigate,
 	Chase,
 	Search,
-	Incapacitated
+	Incapacitated,
+	/** The player escaped to a safe zone: the Guest shows his frustration, then goes back to patrol. */
+	GiveUp
 };
 
 UENUM(BlueprintType)

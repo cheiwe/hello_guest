@@ -131,6 +131,7 @@ void AHGGuestCharacter::ResetToHome()
 	GetWorldTimerManager().ClearTimer(NeutralizeTimer);
 	SlowMultiplier = 1.f;
 	bPlayingCatch = false;
+	OneShotUntil = 0.0;
 	CurrentAnim = nullptr;
 	SetActorHiddenInGame(false);
 	SetActorEnableCollision(true);
@@ -187,6 +188,7 @@ void AHGGuestCharacter::SetupModel()
 	RunAnim = Settings->GuestRunAnim.LoadSynchronous();
 	SearchAnim = Settings->GuestSearchAnim.LoadSynchronous();
 	CatchAnim = Settings->GuestCatchAnim.LoadSynchronous();
+	GiveUpAnim = Settings->GuestGiveUpAnim.LoadSynchronous();
 
 	SetActorTickEnabled(true);
 }
@@ -205,7 +207,7 @@ void AHGGuestCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (bPlayingCatch)
+	if (bPlayingCatch || GetWorld()->GetTimeSeconds() < OneShotUntil)
 	{
 		return;
 	}
@@ -247,4 +249,26 @@ void AHGGuestCharacter::PlayCatchAnimation()
 		GetMesh()->PlayAnimation(CatchAnim, false);
 		CurrentAnim = CatchAnim;
 	}
+}
+
+float AHGGuestCharacter::PlayGiveUpAnimation(const FVector& LookAt)
+{
+	FVector ToTarget = LookAt - GetActorLocation();
+	ToTarget.Z = 0.f;
+	if (!ToTarget.IsNearlyZero())
+	{
+		SetActorRotation(ToTarget.Rotation());
+	}
+
+	if (!GiveUpAnim)
+	{
+		return 0.f;
+	}
+
+	GetMesh()->PlayAnimation(GiveUpAnim, false);
+	GetMesh()->SetPlayRate(1.f);
+	CurrentAnim = GiveUpAnim;
+	const float Length = GiveUpAnim->GetPlayLength();
+	OneShotUntil = GetWorld()->GetTimeSeconds() + Length;
+	return Length;
 }

@@ -43,6 +43,9 @@ public:
 	/** Plays the capture animation once (called when the player is caught). */
 	void PlayCatchAnimation();
 
+	/** Turns to the escaped player and plays the frustration animation once. Returns its length (0 without a model). */
+	float PlayGiveUpAnimation(const FVector& LookAt);
+
 	virtual void Tick(float DeltaSeconds) override;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Hello Guest|Guest")
@@ -80,11 +83,15 @@ private:
 	bool bIncapacitated = false;
 	bool bPlayingCatch = false;
 
+	/** World time until which a one-shot animation (give-up) plays instead of the locomotion loops. */
+	double OneShotUntil = 0.0;
+
 	UPROPERTY() TObjectPtr<UAnimSequence> IdleAnim;
 	UPROPERTY() TObjectPtr<UAnimSequence> WalkAnim;
 	UPROPERTY() TObjectPtr<UAnimSequence> RunAnim;
 	UPROPERTY() TObjectPtr<UAnimSequence> SearchAnim;
 	UPROPERTY() TObjectPtr<UAnimSequence> CatchAnim;
+	UPROPERTY() TObjectPtr<UAnimSequence> GiveUpAnim;
 	UPROPERTY() TObjectPtr<UAnimSequence> CurrentAnim;
 
 	FTimerHandle StunTimer;

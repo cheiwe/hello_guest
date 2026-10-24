@@ -77,6 +77,7 @@ void AHGPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	Input->BindAction(Config->NextItem, ETriggerEvent::Started, this, &AHGPlayerCharacter::HandleNextItem);
 	Input->BindAction(Config->PreviousItem, ETriggerEvent::Started, this, &AHGPlayerCharacter::HandlePreviousItem);
 	Input->BindAction(Config->Pause, ETriggerEvent::Started, this, &AHGPlayerCharacter::HandlePause);
+	Input->BindAction(Config->GodMode, ETriggerEvent::Started, this, &AHGPlayerCharacter::HandleGodMode);
 }
 
 void AHGPlayerCharacter::Tick(float DeltaSeconds)
@@ -265,6 +266,11 @@ void AHGPlayerCharacter::HandlePause()
 	{
 		PC->TogglePauseMenu();
 	}
+}
+
+void AHGPlayerCharacter::HandleGodMode()
+{
+	bGodMode = !bGodMode;
 }
 
 // --- Per-frame helpers ---------------------------------------------------------

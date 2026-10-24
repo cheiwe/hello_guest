@@ -102,6 +102,13 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Guest|Senses", meta = (Units = "cm"))
 	float DarkZoneDetectDistance = 250.f;
 
+	/**
+	 * Closer than this the Guest sees the player in any posture (crouching included) and outside the
+	 * vision cone, as long as nothing blocks the view. The cone alone misses a crouching player at his feet.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category = "Guest|Senses", meta = (Units = "cm"))
+	float CloseSightDistance = 300.f;
+
 	UPROPERTY(Config, EditAnywhere, Category = "Guest|Behaviour", meta = (Units = "cm"))
 	float CatchDistance = 110.f;
 
@@ -143,6 +150,10 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Guest|Behaviour", meta = (Units = "s"))
 	float NeutralizeDuration = 1.5f;
 
+	/** How long the Guest stands fuming after the player escapes into a safe zone, when there is no give-up animation. */
+	UPROPERTY(Config, EditAnywhere, Category = "Guest|Behaviour", meta = (Units = "s"))
+	float GiveUpDuration = 3.f;
+
 	/** Progress flags that raise the Guest's activity phase (see Docs/PLAN.md). */
 	UPROPERTY(Config, EditAnywhere, Category = "Guest|Phases")
 	TArray<FHGGuestPhaseRule> GuestPhaseRules;
@@ -172,6 +183,10 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, Category = "Guest|Model")
 	TSoftObjectPtr<UAnimSequence> GuestCatchAnim;
+
+	/** Played once when the player escapes into a safe zone (frustration). */
+	UPROPERTY(Config, EditAnywhere, Category = "Guest|Model")
+	TSoftObjectPtr<UAnimSequence> GuestGiveUpAnim;
 
 	/** Rotation that makes an imported mesh face the actor's forward axis. */
 	UPROPERTY(Config, EditAnywhere, Category = "Guest|Model", meta = (Units = "deg"))

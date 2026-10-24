@@ -44,6 +44,12 @@ public:
 
 	bool IsHoldingObject() const { return HeldComponent.IsValid(); }
 
+	/** Testing aid: the Guest still sees and chases the player but cannot catch him. */
+	UFUNCTION(BlueprintPure, Category = "Hello Guest|Player")
+	bool IsGodMode() const { return bGodMode; }
+
+	void SetGodMode(bool bEnabled) { bGodMode = bEnabled; }
+
 	void EnterDarkZone() { ++DarkZoneCount; }
 	void ExitDarkZone() { DarkZoneCount = FMath::Max(0, DarkZoneCount - 1); }
 
@@ -98,6 +104,7 @@ private:
 	void HandleNextItem();
 	void HandlePreviousItem();
 	void HandlePause();
+	void HandleGodMode();
 
 	bool CanAct() const { return !bInputLocked && !bDead && !bStunned; }
 
@@ -120,6 +127,7 @@ private:
 	bool bStunned = false;
 	bool bDead = false;
 	bool bInputLocked = false;
+	bool bGodMode = false;
 
 	FTimerHandle StunTimer;
 };

@@ -30,3 +30,7 @@ Thumbs.db
 # Python
 __pycache__/
 *.pyc
+*.slnx
+
+# Local Claude Code settings
+.claude/settings.local.json

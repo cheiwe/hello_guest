@@ -35,6 +35,7 @@ void UHGInputConfig::Build()
 	PreviousItem = MakeAction(this, TEXT("IA_PreviousItem"), EInputActionValueType::Boolean);
 	Pause = MakeAction(this, TEXT("IA_Pause"), EInputActionValueType::Boolean);
 	Pause->bTriggerWhenPaused = true;
+	GodMode = MakeAction(this, TEXT("IA_GodMode"), EInputActionValueType::Boolean);
 
 	// --- Keyboard and mouse ----------------------------------------------------
 	KeyboardContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Keyboard"));
@@ -60,6 +61,9 @@ void UHGInputConfig::Build()
 	KeyboardContext->MapKey(PreviousItem, EKeys::MouseScrollUp);
 	KeyboardContext->MapKey(Pause, EKeys::Escape);
 	KeyboardContext->MapKey(Pause, EKeys::P);
+#if !UE_BUILD_SHIPPING
+	KeyboardContext->MapKey(GodMode, EKeys::G);
+#endif
 
 	// --- Gamepad ---------------------------------------------------------------
 	GamepadContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Gamepad"));

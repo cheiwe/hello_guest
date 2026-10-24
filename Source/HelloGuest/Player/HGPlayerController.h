@@ -37,6 +37,8 @@ public:
 	UFUNCTION(Exec) void HGLanguage(const FString& Culture);
 	UFUNCTION(Exec) void HGGive(FName ItemId);
 	UFUNCTION(Exec) void HGFlag(FName Flag);
+	/** Toggles god mode (also the G key): the Guest cannot catch the player. */
+	UFUNCTION(Exec) void HGGod();
 
 protected:
 	virtual void BeginPlay() override;

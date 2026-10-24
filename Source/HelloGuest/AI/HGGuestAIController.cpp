@@ -6,6 +6,8 @@
 #include "Core/HGGameMode.h"
 #include "Core/HGGameplaySettings.h"
 #include "Core/HGWorldStateSubsystem.h"
+#include "Interaction/HGSafeZone.h"
+#include "Components/CapsuleComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "HelloGuest.h"
@@ -74,8 +76,54 @@ bool AHGGuestAIController::CanNoticePlayer(const AHGPlayerCharacter* Player) con
 		return false;
 	}
 
+	if (AHGSafeZone::IsLocationSafe(this, Player->GetActorLocation()))
+	{
+		return false;
+	}
+
 	const float Distance = FVector::Dist(Player->GetActorLocation(), GetPawn()->GetActorLocation());
 	return !Player->IsConcealed() || Distance <= UHGGameplaySettings::Get()->DarkZoneDetectDistance;
+}
+
+bool AHGGuestAIController::CanSeePlayerUpClose(const AHGPlayerCharacter* Player) const
+{
+	if (!CanNoticePlayer(Player))
+	{
+		return false;
+	}
+
+	const APawn* Guest = GetPawn();
+	const FVector ToPlayer = Player->GetActorLocation() - Guest->GetActorLocation();
+	if (ToPlayer.Size() > UHGGameplaySettings::Get()->CloseSightDistance)
+	{
+		return false;
+	}
+
+	// In front and to the sides, not behind his back: sneaking past him from behind still works.
+	const FVector Facing = Guest->GetActorForwardVector().GetSafeNormal2D();
+	if (FVector::DotProduct(Facing, ToPlayer.GetSafeNormal2D()) < -0.35f)
+	{
+		return false;
+	}
+	return HasClearViewTo(Player);
+}
+
+bool AHGGuestAIController::HasClearViewTo(const AHGPlayerCharacter* Player) const
+{
+	const FVector Eyes = GetPawn()->GetPawnViewLocation();
+	const FVector Body = Player->GetActorLocation();
+	const FVector Head = Body + FVector(0.f, 0.f, Player->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() * 0.6f);
+
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(HGGuestView), false, GetPawn());
+	Params.AddIgnoredActor(Player);
+	return !GetWorld()->LineTraceTestByChannel(Eyes, Body, ECC_Visibility, Params)
+		|| !GetWorld()->LineTraceTestByChannel(Eyes, Head, ECC_Visibility, Params);
+}
+
+AHGPlayerCharacter* AHGGuestAIController::GetLocalPlayerCharacter() const
+{
+	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	return PC ? Cast<AHGPlayerCharacter>(PC->GetPawn()) : nullptr;
 }
 
 void AHGGuestAIController::HandlePerception(AActor* Actor, FAIStimulus Stimulus)
@@ -110,7 +158,8 @@ void AHGGuestAIController::HandlePerception(AActor* Actor, FAIStimulus Stimulus)
 
 	if (Stimulus.Type == UAISense::GetSenseID<UAISense_Hearing>())
 	{
-		if (State == EHGGuestState::Chase || State == EHGGuestState::Incapacitated || bCaught || !Stimulus.WasSuccessfullySensed())
+		if (State == EHGGuestState::Chase || State == EHGGuestState::Incapacitated || State == EHGGuestState::GiveUp || bCaught
+			|| !Stimulus.WasSuccessfullySensed() || AHGSafeZone::IsLocationSafe(this, Stimulus.StimulusLocation))
 		{
 			return;
 		}
@@ -135,10 +184,18 @@ void AHGGuestAIController::Tick(float DeltaSeconds)
 	const UHGGameplaySettings* Settings = UHGGameplaySettings::Get();
 	StateTime += DeltaSeconds;
 
-	AHGPlayerCharacter* Seen = PlayerInSight.Get();
-	if (State != EHGGuestState::Chase && Seen && CanNoticePlayer(Seen) && LineOfSightTo(Seen))
+	if (State != EHGGuestState::Chase)
 	{
-		StartChase(Seen);
+		AHGPlayerCharacter* Seen = PlayerInSight.Get();
+		AHGPlayerCharacter* Nearby = GetLocalPlayerCharacter();
+		if (Seen && CanNoticePlayer(Seen) && LineOfSightTo(Seen))
+		{
+			StartChase(Seen);
+		}
+		else if (Nearby && CanSeePlayerUpClose(Nearby))
+		{
+			StartChase(Nearby);
+		}
 	}
 
 	if (State == EHGGuestState::Chase)
@@ -168,6 +225,11 @@ void AHGGuestAIController::Tick(float DeltaSeconds)
 			{
 				MoveToSearchPoint();
 			}
+			else if (State == EHGGuestState::GiveUp)
+			{
+				// Done fuming: back to the house and the yard.
+				EnterState(EHGGuestState::Patrol);
+			}
 		}
 	}
 }
@@ -182,6 +244,12 @@ void AHGGuestAIController::TickChase(float DeltaSeconds)
 
 	const UHGGameplaySettings* Settings = UHGGameplaySettings::Get();
 
+	if (AHGSafeZone::IsLocationSafe(this, Player->GetActorLocation()))
+	{
+		GiveUp();
+		return;
+	}
+
 	// Re-path a few times per second if the previous move ended (reached a partial path end, etc.).
 	RepathCooldown -= DeltaSeconds;
 	if (RepathCooldown <= 0.f && GetMoveStatus() == EPathFollowingStatus::Idle)
@@ -190,12 +258,12 @@ void AHGGuestAIController::TickChase(float DeltaSeconds)
 		MoveToActor(Player, Settings->CatchDistance * 0.5f, true, true, false, TSubclassOf<UNavigationQueryFilter>(), true);
 	}
 
-	if (CanNoticePlayer(Player) && LineOfSightTo(Player))
+	if ((CanNoticePlayer(Player) && LineOfSightTo(Player)) || CanSeePlayerUpClose(Player))
 	{
 		TimeSinceSeen = 0.f;
 		LastKnownLocation = Player->GetActorLocation();
 
-		if (FVector::Dist(Player->GetActorLocation(), GetPawn()->GetActorLocation()) <= Settings->CatchDistance)
+		if (FVector::Dist(Player->GetActorLocation(), GetPawn()->GetActorLocation()) <= Settings->CatchDistance && !Player->IsGodMode())
 		{
 			CatchPlayer();
 		}
@@ -252,6 +320,27 @@ void AHGGuestAIController::CatchPlayer()
 	}
 }
 
+void AHGGuestAIController::GiveUp()
+{
+	const AHGPlayerCharacter* Player = Target.Get();
+	const UHGGameplaySettings* Settings = UHGGameplaySettings::Get();
+
+	StopMovement();
+	Alert = 50.f;
+	EnterState(EHGGuestState::GiveUp);
+
+	float Duration = Settings->GiveUpDuration;
+	if (AHGGuestCharacter* Guest = GetGuest())
+	{
+		const float AnimLength = Guest->PlayGiveUpAnimation(Player ? Player->GetActorLocation() : LastKnownLocation);
+		if (AnimLength > 0.f)
+		{
+			Duration = AnimLength;
+		}
+	}
+	WaitRemaining = Duration;
+}
+
 void AHGGuestAIController::EnterState(EHGGuestState NewState)
 {
 	State = NewState;
@@ -275,6 +364,11 @@ void AHGGuestAIController::EnterState(EHGGuestState NewState)
 		RequestMove(LastKnownLocation, 80.f, Filter, true);
 		break;
 
+	case EHGGuestState::GiveUp:
+		Target.Reset();
+		bAllowRestricted = false;
+		break;
+
 	default:
 		break;
 	}
@@ -291,7 +385,11 @@ void AHGGuestAIController::OnMoveCompleted(FAIRequestID RequestID, const FPathFo
 	{
 		return;
 	}
+	HandleMoveFinished();
+}
 
+void AHGGuestAIController::HandleMoveFinished()
+{
 	const UHGGameplaySettings* Settings = UHGGameplaySettings::Get();
 	switch (State)
 	{
@@ -369,14 +467,16 @@ void AHGGuestAIController::MoveToNextPatrolPoint()
 	const TSubclassOf<UNavigationQueryFilter> Filter = Chosen->bInRestrictedRoom
 		? TSubclassOf<UNavigationQueryFilter>()
 		: TSubclassOf<UNavigationQueryFilter>(UHGNavFilter_GuestPatrol::StaticClass());
-	RequestMove(Chosen->GetActorLocation(), 50.f, Filter, true);
+	// No partial paths: a point behind boards would leave him loitering at the nearest reachable spot.
+	RequestMove(Chosen->GetActorLocation(), 50.f, Filter, true, false);
 }
 
 void AHGGuestAIController::MoveToSearchPoint()
 {
 	const UNavigationSystemV1* Nav = UNavigationSystemV1::GetNavigationSystem(GetWorld());
 	FNavLocation Point;
-	if (!Nav || !Nav->GetRandomReachablePointInRadius(LastKnownLocation, UHGGameplaySettings::Get()->SearchRadius, Point))
+	if (!Nav || !Nav->GetRandomReachablePointInRadius(LastKnownLocation, UHGGameplaySettings::Get()->SearchRadius, Point)
+		|| AHGSafeZone::IsLocationSafe(this, Point.Location))
 	{
 		WaitRemaining = 1.f;
 		return;
@@ -445,10 +545,16 @@ void AHGGuestAIController::ResetToPatrol()
 }
 
 void AHGGuestAIController::RequestMove(const FVector& Destination, float AcceptanceRadius, TSubclassOf<UNavigationQueryFilter> Filter,
-	bool bProjectToNavigation)
+	bool bProjectToNavigation, bool bAllowPartialPath)
 {
 	const EPathFollowingRequestResult::Type Result =
-		MoveToLocation(Destination, AcceptanceRadius, true, true, bProjectToNavigation, false, Filter, true);
+		MoveToLocation(Destination, AcceptanceRadius, true, true, bProjectToNavigation, false, Filter, bAllowPartialPath);
+	if (Result == EPathFollowingRequestResult::AlreadyAtGoal)
+	{
+		// No move starts, so OnMoveCompleted never fires: without this he would stand in Investigate forever.
+		HandleMoveFinished();
+		return;
+	}
 	if (Result != EPathFollowingRequestResult::Failed)
 	{
 		return;

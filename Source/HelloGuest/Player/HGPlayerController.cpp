@@ -193,4 +193,13 @@ void AHGPlayerController::HGFlag(FName Flag)
 	}
 }
 
+void AHGPlayerController::HGGod()
+{
+	if (AHGPlayerCharacter* PlayerCharacter = Cast<AHGPlayerCharacter>(GetPawn()))
+	{
+		PlayerCharacter->SetGodMode(!PlayerCharacter->IsGodMode());
+		ClientMessage(PlayerCharacter->IsGodMode() ? TEXT("God mode ON") : TEXT("God mode OFF"));
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

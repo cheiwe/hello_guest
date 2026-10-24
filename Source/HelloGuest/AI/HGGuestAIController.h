@@ -15,7 +15,7 @@ class UNavigationQueryFilter;
 /**
  * Guest behaviour as a small state machine:
  * Patrol -> (noise) Investigate -> Search -> Patrol
- * any    -> (sees player) Chase -> (lost) Search / (close) catch.
+ * any    -> (sees player) Chase -> (lost) Search / (close) catch / (player in a safe zone) GiveUp -> Patrol.
  * Alert (0..100) rises with noises and decays over time; seeing the player sets it to 100.
  */
 UCLASS()
@@ -61,13 +61,30 @@ private:
 	void MoveToSearchPoint();
 	void TickChase(float DeltaSeconds);
 	void CatchPlayer();
+	void GiveUp();
 	void UpdateSpeed();
 
-	/** MoveToLocation that retries later instead of freezing when no path can be requested. */
-	void RequestMove(const FVector& Destination, float AcceptanceRadius, TSubclassOf<UNavigationQueryFilter> Filter, bool bProjectToNavigation);
+	/** Arrived (or already standing) at the move goal: wait, look around or pick the next point. Never starts a move itself. */
+	void HandleMoveFinished();
 
-	/** Applies the dark-zone rule on top of the engine's line-of-sight check. */
+	/**
+	 * MoveToLocation that retries later instead of freezing when no path can be requested.
+	 * Without bAllowPartialPath an unreachable destination fails instead of walking to the nearest
+	 * reachable spot, so patrols skip points that are boarded up.
+	 */
+	void RequestMove(const FVector& Destination, float AcceptanceRadius, TSubclassOf<UNavigationQueryFilter> Filter, bool bProjectToNavigation,
+		bool bAllowPartialPath = true);
+
+	/** Applies the dark-zone and safe-zone rules on top of the engine's line-of-sight check. */
 	bool CanNoticePlayer(const AHGPlayerCharacter* Player) const;
+
+	/** Close range: sees the player in any posture outside the vision cone, unless something blocks the view. */
+	bool CanSeePlayerUpClose(const AHGPlayerCharacter* Player) const;
+
+	/** Unblocked view from the Guest's eyes to the player's body or head. */
+	bool HasClearViewTo(const AHGPlayerCharacter* Player) const;
+
+	AHGPlayerCharacter* GetLocalPlayerCharacter() const;
 
 	EHGGuestState State = EHGGuestState::Patrol;
 	EHGGuestState StateBeforeIncapacitated = EHGGuestState::Patrol;

@@ -31,6 +31,9 @@ public:
 	UPROPERTY() TObjectPtr<UInputAction> PreviousItem;
 	UPROPERTY() TObjectPtr<UInputAction> Pause;
 
+	/** Testing aid, not mapped in Shipping builds. */
+	UPROPERTY() TObjectPtr<UInputAction> GodMode;
+
 	UPROPERTY() TObjectPtr<UInputMappingContext> KeyboardContext;
 	UPROPERTY() TObjectPtr<UInputMappingContext> GamepadContext;
 };

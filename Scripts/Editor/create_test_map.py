@@ -75,7 +75,7 @@ def patrol_point(label, location, min_phase=0, weight=1.0, restricted=False):
     actor = spawn(hg_class("HGPatrolPoint"), location, label=label, folder="Guest")
     actor.set_editor_property("min_phase", min_phase)
     actor.set_editor_property("weight", weight)
-    actor.set_editor_property("in_restricted_room", restricted)
+    actor.set_editor_property("restricted_room", restricted)
     return actor
 
 
