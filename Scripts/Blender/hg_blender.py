@@ -213,9 +213,9 @@ def rod(name, start, end, radius, mat="MetalDark", coll=None, segments=8):
     return obj
 
 
-def cable(name, points, radius, mat="Bakelite", coll=None, segments=6, resolution=6):
-    """Smooth tube through the points (wires, hoses, cable bundles): a NURBS curve with a bevel,
-    converted to a mesh."""
+def cable(name, points, radius, mat="Bakelite", coll=None, segments=6, resolution=6, radii=None):
+    """Smooth tube through the points (wires, hoses, cable bundles, branches): a NURBS curve with a
+    bevel, converted to a mesh. radii: optional thickness factor per point (tapering branches)."""
     curve = bpy.data.curves.new(name, "CURVE")
     curve.dimensions = "3D"
     curve.bevel_depth = radius
@@ -224,8 +224,10 @@ def cable(name, points, radius, mat="Bakelite", coll=None, segments=6, resolutio
     curve.resolution_u = resolution
     spline = curve.splines.new("NURBS")
     spline.points.add(len(points) - 1)
-    for p, co in zip(spline.points, points):
+    for i, (p, co) in enumerate(zip(spline.points, points)):
         p.co = (*co, 1.0)
+        if radii:
+            p.radius = radii[i]
     spline.use_endpoint_u = True
     spline.order_u = min(4, len(points))
     obj = bpy.data.objects.new(name, curve)

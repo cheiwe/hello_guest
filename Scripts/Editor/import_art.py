@@ -20,7 +20,7 @@ TEXTURES = ART + "/Textures"
 MASTER = MATERIALS + "/M_HG_Master"
 
 # Categories of SourceArt/Models to import into /Game/Art/<Category>.
-MODEL_CATEGORIES = ["Hallway", "Props", "Exterior", "Study", "Rooms", "Attic", "Basement", "PlayerRoom"]
+MODEL_CATEGORIES = ["Hallway", "Props", "Exterior", "Study", "Rooms", "Attic", "Basement", "PlayerRoom", "Outdoor", "Yard"]
 
 PH = TEXTURES + "/PolyHaven"
 ST = TEXTURES + "/Stylized"
@@ -150,6 +150,31 @@ LOOKS = {
     "TinBlue": dict(tint=(0.25, 0.45, 0.7), metallic=0.6, rough=0.35),
     "TinGreen": dict(tint=(0.25, 0.45, 0.3), metallic=0.4, rough=0.5),
     "Skin": dict(tint=(0.9, 0.68, 0.52), rough=0.6),
+    # Outdoors (Street_Example, Yard_01-03, Ufo_above_the_roof).
+    "VanPaint": dict(tex="rust_coarse_01", uv=0.5, tint=(1.15, 0.8, 0.72), metallic=0.3, rough=0.75),
+    "VanRoof": dict(tex="rust_coarse_01", uv=0.7, tint=(1.0, 0.75, 0.6), metallic=0.3, rough=0.85),
+    "VanCream": dict(tex="painted_plaster_wall", uv=1.0, tint=(0.92, 0.85, 0.7), rough=0.6),
+    "VanGlass": dict(tint=(0.12, 0.15, 0.16), rough=0.08, metallic=0.4),
+    "VanInterior": dict(tex="dark_wooden_planks", uv=1.0, tint=(0.4, 0.35, 0.32), rough=0.9),
+    "ChromeRust": dict(tex="rust_coarse_01", uv=2.0, tint=(1.3, 1.25, 1.2), metallic=0.8, rough=0.45),
+    "Bark": dict(tex="dark_wooden_planks", uv=1.5, tint=(0.55, 0.48, 0.42), rough=0.95),
+    "Foliage": dict(tex="forrest_ground_01", uv=0.6, tint=(0.75, 1.1, 0.45), rough=0.9),
+    "FoliageDark": dict(tex="forrest_ground_01", uv=0.6, tint=(0.5, 0.75, 0.32), rough=0.9),
+    "Grass": dict(tint=(0.42, 0.55, 0.2), rough=0.9, masked=True),
+    "HoseGreen": dict(tint=(0.15, 0.45, 0.2), rough=0.4),
+    "RoadLine": dict(tex="asphalt_03", uv=1.0, tint=(1.6, 1.15, 0.25), rough=0.7),
+    "SidingCream": dict(tex="blue_painted_planks", uv=1.0, tint=(1.6, 1.35, 1.0), rough=0.8),
+    "ShingleBrown": dict(tex="asphalt_03", uv=2.0, tint=(1.0, 0.68, 0.5), rough=0.9),
+    "WindowDark": dict(tint=(0.1, 0.12, 0.13), rough=0.1, metallic=0.3, emissive=(1.0, 0.7, 0.4), emissive_strength=0.15),
+    "UfoHull": dict(tex="rust_coarse_01", uv=0.25, tint=(1.0, 1.05, 0.95), metallic=0.7, rough=0.45),
+    "UfoHullDark": dict(tex="rust_coarse_01", uv=0.5, tint=(0.55, 0.6, 0.55), metallic=0.7, rough=0.5),
+    "UfoLight": dict(tint=(0.6, 1.0, 0.6), rough=0.2, emissive=(0.45, 1.0, 0.4), emissive_strength=12.0),
+    "UfoBeamGlow": dict(tint=(0.8, 1.0, 0.8), rough=0.2, emissive=(0.5, 1.0, 0.45), emissive_strength=25.0),
+    "Beam": dict(tex=ST + "/T_Beam_Gradient_D", uv=1.0, emissive=(0.25, 1.0, 0.3), emissive_strength=1.5, emissive_tex=True, additive=True),
+    "RayGunMetal": dict(tint=(0.55, 0.62, 0.68), metallic=0.9, rough=0.25),
+    "RingYellow": dict(tint=(1.0, 0.85, 0.2), rough=0.3, emissive=(1.0, 0.8, 0.15), emissive_strength=6.0),
+    "RingPink": dict(tint=(1.0, 0.35, 0.8), rough=0.3, emissive=(1.0, 0.3, 0.8), emissive_strength=6.0),
+    "RingGreen": dict(tint=(0.4, 1.0, 0.4), rough=0.3, emissive=(0.4, 1.0, 0.35), emissive_strength=6.0),
     # Characters: the UVs point into the concept sheet itself.
     "Vitec": dict(tex=ST + "/T_Vitec_Sheet_D", uv=1.0, rough=0.75),
 }
@@ -202,8 +227,9 @@ MASTER_VERSION = 3
 OLD_MASTERS = ["M_HG_Master", "M_HG_Masked", "M_HG_Base_v2", "M_HG_BaseMasked_v2"]
 
 
-def build_master(name="M_HG_Base", masked=False):
-    """Master material. The masked variant (chain-link, webs) cuts holes with the colour texture's alpha."""
+def build_master(name="M_HG_Base", masked=False, additive=False):
+    """Master material. The masked variant (chain-link, webs) cuts holes with the colour texture's alpha;
+    the additive one (the UFO's tractor beam) is unlit, two-sided and only adds its emissive glow."""
     name = "%s_v%d" % (name, MASTER_VERSION)
     path = MATERIALS + "/" + name
     if eal.does_asset_exist(path):
@@ -213,6 +239,10 @@ def build_master(name="M_HG_Base", masked=False):
         raise RuntimeError("Could not create " + path)
     if masked:
         mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_MASKED)
+        mat.set_editor_property("two_sided", True)
+    if additive:
+        mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_ADDITIVE)
+        mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
         mat.set_editor_property("two_sided", True)
 
     def expr(cls, x, y):
@@ -296,12 +326,13 @@ def polyhaven(asset_id, kind):
     return "%s/%s/%s_%s_2k" % (PH, asset_id, asset_id, kind)
 
 
-def build_instances(master, masked_master):
+def build_instances(master, masked_master, additive_master):
     for name, look in LOOKS.items():
         path = MATERIALS + "/MI_" + name
         mi = unreal.load_asset(path) if eal.does_asset_exist(path) else asset_tools.create_asset(
             "MI_" + name, MATERIALS, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
-        mel.set_material_instance_parent(mi, masked_master if look.get("masked") else master)
+        parent = additive_master if look.get("additive") else masked_master if look.get("masked") else master
+        mel.set_material_instance_parent(mi, parent)
         mel.clear_all_material_instance_parameters(mi)
 
         tex = look.get("tex")
@@ -442,7 +473,8 @@ def main():
     import_textures()
     master = build_master()
     masked_master = build_master("M_HG_BaseMasked", masked=True)
-    build_instances(master, masked_master)
+    additive_master = build_master("M_HG_BaseAdditive", additive=True)
+    build_instances(master, masked_master, additive_master)
     # Masters of older versions are unreferenced now.
     for asset in eal.list_assets(MATERIALS, recursive=False):
         short = asset.split("/")[-1].split(".")[0]

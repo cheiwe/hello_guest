@@ -266,6 +266,17 @@ def wallpaper_stripe(size=1024):
     return age(img.filter(ImageFilter.GaussianBlur(1.2)), 81, 0.12)
 
 
+def beam_gradient(width=256, height=512):
+    """Tractor beam glow: bright under the saucer (top of the image), fading to nothing at the ground,
+    with soft vertical streaks (the beam mesh wraps this four times around)."""
+    rnd = np.random.default_rng(91)
+    v = np.linspace(1.0, 0.0, height)[:, None] ** 1.6
+    streaks = 0.65 + 0.35 * np.interp(np.arange(width), np.linspace(0, width, 9), rnd.random(9))[None, :]
+    arr = np.clip(v * streaks * 255, 0, 255).astype(np.uint8)
+    img = Image.fromarray(arr).convert("RGB").filter(ImageFilter.GaussianBlur(6))
+    return img
+
+
 def portrait_clue():
     """
     The puzzle painting: the man at his desk with an inkwell, a book and a globe, left to right
@@ -359,6 +370,7 @@ def main():
         "T_Comic_Cover_D": poster((2360, 151, 2511, 319), (400, 520)),
         "T_Rug_Player_D": player_rug(),
         "T_Wallpaper_Stripe_D": wallpaper_stripe(),
+        "T_Beam_Gradient_D": beam_gradient(),
         # Linear white: default roughness map of the master material (imported without sRGB).
         "T_Default_Linear": Image.new("RGB", (8, 8), (255, 255, 255)),
     }
