@@ -31,6 +31,28 @@ void AHGHUD::HandleGameSaved(int32 SlotIndex, bool bAutosave)
 	SaveIndicatorUntil = GetWorld()->GetRealTimeSeconds() + 2.0;
 }
 
+void AHGHUD::ShowSubtitle(const FText& Text, float Duration)
+{
+	SubtitleText = Text;
+	SubtitleUntil = GetWorld()->GetRealTimeSeconds() + Duration;
+}
+
+void AHGHUD::DrawSubtitle()
+{
+	if (SubtitleText.IsEmpty() || GetWorld()->GetRealTimeSeconds() > SubtitleUntil)
+	{
+		return;
+	}
+	const float Scale = FMath::Max(1.f, Canvas->ClipY / 720.f) * 1.3f;
+	float Width = 0.f;
+	float Height = 0.f;
+	Canvas->TextSize(GEngine->GetMediumFont(), SubtitleText.ToString(), Width, Height, Scale, Scale);
+	const float X = (Canvas->ClipX - Width) * 0.5f;
+	const float Y = Canvas->ClipY * 0.86f - Height;
+	DrawRect(FLinearColor(0.f, 0.f, 0.f, 0.55f), X - 12.f, Y - 6.f, Width + 24.f, Height + 12.f);
+	DrawTextLine(SubtitleText, X, Y, FLinearColor(1.f, 0.95f, 0.8f), Scale);
+}
+
 void AHGHUD::DrawTextLine(const FText& Text, float X, float Y, const FLinearColor& Color, float Scale)
 {
 	FCanvasTextItem Item(FVector2D(X, Y), Text, GEngine->GetMediumFont(), Color);
@@ -42,6 +64,11 @@ void AHGHUD::DrawTextLine(const FText& Text, float X, float Y, const FLinearColo
 void AHGHUD::DrawHUD()
 {
 	Super::DrawHUD();
+
+	if (Canvas)
+	{
+		DrawSubtitle();
+	}
 
 	AHGPlayerController* PC = Cast<AHGPlayerController>(GetOwningPlayerController());
 	AHGPlayerCharacter* Player = PC ? Cast<AHGPlayerCharacter>(PC->GetPawn()) : nullptr;

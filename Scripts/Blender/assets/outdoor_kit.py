@@ -486,6 +486,64 @@ def mailbox(name, coll):
     return obj
 
 
+def rain_curtains(name, coll, size=10.0, height=14.0, rows=4):
+    """Rain tile: a grid of vertical planes (along X and along Y) covering size x size m from the origin,
+    for the additive, panning rain material. U runs 1 per 2 m, V 1 per 4 m of height."""
+    mesh = bpy.data.meshes.new(name)
+    bm = bmesh.new()
+    uv_layer = bm.loops.layers.uv.new("UVMap")
+    for k in range(rows):
+        c = (k + 0.5) * size / rows
+        for along_x in (True, False):
+            corners = [(0, 0), (size, 0), (size, height), (0, height)]
+            verts = []
+            for a, z in corners:
+                verts.append(bm.verts.new((a, c, z) if along_x else (c, a, z)))
+            face = bm.faces.new(verts)
+            for loop, (a, z) in zip(face.loops, corners):
+                loop[uv_layer].uv = (a / 2.0 + k * 0.37, z / 4.0)
+    bm.to_mesh(mesh)
+    bm.free()
+    obj = bpy.data.objects.new(name, mesh)
+    obj.data.materials.append(hg.material("Rain"))
+    coll.objects.link(obj)
+    return obj
+
+
+def sky_dome(name, coll, radius=400.0):
+    """Inside-out sphere for the storm clouds (unlit, additive over the black night sky)."""
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=48, ring_count=24, radius=radius, location=(0, 0, 0))
+    obj = bpy.context.active_object
+    obj.name = name
+    obj.data.name = name
+    for c in obj.users_collection:
+        c.objects.unlink(obj)
+    coll.objects.link(obj)
+    obj.data.materials.append(hg.material("SkyClouds"))
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bmesh.ops.reverse_faces(bm, faces=list(bm.faces))
+    uv_layer = bm.loops.layers.uv.verify()
+    for face in bm.faces:
+        for loop in face.loops:
+            co = loop.vert.co
+            u = (math.atan2(co.y, co.x) / (2 * math.pi)) % 1.0
+            v = 0.5 + math.asin(max(-1.0, min(1.0, co.z / radius))) / math.pi
+            loop[uv_layer].uv = (u * 3.0, v)
+    # Fix the seam: faces that wrap around get u + 3 on the low side.
+    for face in bm.faces:
+        us = [l[uv_layer].uv.x for l in face.loops]
+        if max(us) - min(us) > 1.5:
+            for l in face.loops:
+                if l[uv_layer].uv.x < 1.5:
+                    l[uv_layer].uv.x += 3.0
+    bm.to_mesh(obj.data)
+    bm.free()
+    for p in obj.data.polygons:
+        p.use_smooth = True
+    return obj
+
+
 def build():
     hg.reset_scene()
     coll = hg.collection("Kit_Outdoor")
@@ -508,6 +566,8 @@ def build():
         curb("SM_Curb_400", coll),
         sidewalk("SM_Sidewalk_400", coll),
         mailbox("SM_Mailbox", coll),
+        rain_curtains("SM_RainCurtains_1000", coll),
+        sky_dome("SM_SkyDome", coll),
     ]
     for obj in assets:
         hg.export_fbx([obj], os.path.join(OUT, obj.name + ".fbx"))

@@ -22,7 +22,9 @@ public class HelloGuest : ModuleRules
 			"EngineSettings",
 			"Slate",
 			"SlateCore",
-			"UMG"
+			"UMG",
+			"LevelSequence",
+			"MovieScene"
 		});
 	}
 }

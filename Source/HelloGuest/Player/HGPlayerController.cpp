@@ -3,8 +3,11 @@
 #include "Player/HGPlayerCharacter.h"
 #include "Player/HGInventoryComponent.h"
 #include "Core/HGGameUserSettings.h"
+#include "Core/HGStorm.h"
 #include "Core/HGWorldStateSubsystem.h"
+#include "Interaction/HGFinaleTrigger.h"
 #include "Save/HGSaveSubsystem.h"
+#include "EngineUtils.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "Framework/Application/IInputProcessor.h"
@@ -199,6 +202,22 @@ void AHGPlayerController::HGGod()
 	{
 		PlayerCharacter->SetGodMode(!PlayerCharacter->IsGodMode());
 		ClientMessage(PlayerCharacter->IsGodMode() ? TEXT("God mode ON") : TEXT("God mode OFF"));
+	}
+}
+
+void AHGPlayerController::HGLightning(float Distance)
+{
+	for (TActorIterator<AHGStorm> It(GetWorld()); It; ++It)
+	{
+		It->Strike(Distance);
+	}
+}
+
+void AHGPlayerController::HGFinale()
+{
+	for (TActorIterator<AHGFinaleTrigger> It(GetWorld()); It; ++It)
+	{
+		It->StartFinale();
 	}
 }
 

@@ -39,6 +39,10 @@ public:
 	UFUNCTION(Exec) void HGFlag(FName Flag);
 	/** Toggles god mode (also the G key): the Guest cannot catch the player. */
 	UFUNCTION(Exec) void HGGod();
+	/** Lightning strike now (Distance 0..1, -1 random). */
+	UFUNCTION(Exec) void HGLightning(float Distance = -1.f);
+	/** Plays the end-of-act cutscene at once. */
+	UFUNCTION(Exec) void HGFinale();
 
 protected:
 	virtual void BeginPlay() override;

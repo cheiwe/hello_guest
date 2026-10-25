@@ -277,6 +277,40 @@ def beam_gradient(width=256, height=512):
     return img
 
 
+def rain_streaks(width=256, height=512, drops=180, seed=17):
+    """Rain: thin bright streaks of different lengths on black (additive, tiles in both directions)."""
+    rnd = random.Random(seed)
+    arr = np.zeros((height, width), dtype=np.float32)
+    for _ in range(drops):
+        x = rnd.randrange(width)
+        y = rnd.randrange(height)
+        length = rnd.randint(18, 70)
+        bright = rnd.uniform(0.35, 1.0)
+        for k in range(length):
+            arr[(y + k) % height, x] += bright * (1 - abs(k / length - 0.5) * 1.6)
+    img = Image.fromarray(np.clip(arr * 255, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.6))
+    return img.convert("RGB")
+
+
+def storm_clouds(width=1024, height=512, seed=23):
+    """Low storm clouds for the sky dome (U wraps round the horizon, V from the nadir to the zenith):
+    dark blue-grey billows, a little lighter near the horizon."""
+    acc = np.zeros((height, width), dtype=np.float32)
+    for k, (scale, weight) in enumerate(((128, 0.5), (64, 0.25), (32, 0.15), (16, 0.1))):
+        tile = smooth_noise(max(width, height), scale, seed + k)
+        acc += weight * tile[:height, :width]
+    acc = (acc - acc.min()) / (acc.max() - acc.min())
+    acc = np.clip((acc - 0.35) * 1.8, 0, 1)
+    v = np.linspace(1.0, 0.0, height)[:, None]          # image top = zenith
+    horizon = np.exp(-((v - 0.5) / 0.12) ** 2)
+    shade = acc * (0.55 + 0.45 * (1 - v)) + 0.25 * horizon
+    base = np.array([0.07, 0.08, 0.11])
+    light = np.array([0.32, 0.34, 0.40])
+    rgb = base[None, None, :] + (light - base)[None, None, :] * shade[..., None]
+    rgb[v[:, 0] < 0.45] *= 0.4                           # below the horizon: nearly black
+    return Image.fromarray(np.clip(rgb * 255, 0, 255).astype(np.uint8))
+
+
 def portrait_clue():
     """
     The puzzle painting: the man at his desk with an inkwell, a book and a globe, left to right
@@ -371,6 +405,9 @@ def main():
         "T_Rug_Player_D": player_rug(),
         "T_Wallpaper_Stripe_D": wallpaper_stripe(),
         "T_Beam_Gradient_D": beam_gradient(),
+        # Night thunderstorm.
+        "T_Rain_D": rain_streaks(),
+        "T_StormClouds_D": storm_clouds(),
         # Linear white: default roughness map of the master material (imported without sRGB).
         "T_Default_Linear": Image.new("RGB", (8, 8), (255, 255, 255)),
     }

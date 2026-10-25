@@ -93,7 +93,8 @@ def pose_quat(arm, bone_name, axis, degrees):
 
 
 def apply_pose(arm, pose):
-    """pose: {bone: [(axis, degrees), ...]} - rotations composed in order. Unlisted bones go to rest."""
+    """pose: {bone: [(axis, degrees), ...]} - rotations composed in order. Unlisted bones go to rest.
+    "pelvis_offset": [(x, y, z), ...] moves the pelvis in the armature rest frame (metres, summed)."""
     for pb in arm.pose.bones:
         pb.rotation_mode = "QUATERNION"
         q = Quaternion()
@@ -101,6 +102,11 @@ def apply_pose(arm, pose):
             q = pose_quat(arm, pb.name, axis, deg) @ q
         pb.rotation_quaternion = q
         pb.location = (0, 0, 0)
+    offset = Vector((0, 0, 0))
+    for o in pose.get("pelvis_offset", []):
+        offset += Vector(o)
+    pelvis = arm.pose.bones["pelvis"]
+    pelvis.location = arm.data.bones["pelvis"].matrix_local.to_3x3().inverted() @ offset
 
 
 def test_pose(arm):
@@ -138,10 +144,27 @@ WORK = merge({
 })
 
 
-def typing(t):
+# Sitting on the office chair (he streams from the console): pelvis down onto the seat, thighs
+# forward and level, shins down. The pelvis stays above the root, so a root turn swivels him in place
+# like the chair under him.
+SIT = {
+    "pelvis_offset": [(0.0, 0.0, -0.38)],
+    "thigh_l": [(Y, -79)], "thigh_r": [(Y, -79)], "calf_l": [(Y, 84)], "calf_r": [(Y, 84)],
+    "foot_l": [(Y, -6)], "foot_r": [(Y, -6)],
+}
+
+# Seated, the shoulders are 38 cm lower than standing: the same forearm angle puts the hands on a
+# keyboard at desk height (76 cm).
+WORK_SEATED = merge(WORK, SIT, {"upperarm_l": [(Y, -6)], "upperarm_r": [(Y, -6)], "lowerarm_l": [(Y, -4)], "lowerarm_r": [(Y, -4)]})
+
+# Seated with the hands resting on the thighs (no arms hanging into the legs).
+LAP = {"upperarm_l": [(X, -24), (Y, -20)], "upperarm_r": [(X, 24), (Y, -20)], "lowerarm_l": [(Y, -42)], "lowerarm_r": [(Y, -42)], "hand_l": [(Y, 12)], "hand_r": [(Y, 12)]}
+
+
+def typing(t, seated=True):
     """Small alternating hand motion on the keyboard."""
     s = math.sin(t * 2 * math.pi * 3)
-    return merge(WORK, {"lowerarm_l": [(Y, 4 * s)], "lowerarm_r": [(Y, -4 * s)], "hand_l": [(Y, 6 * s)], "hand_r": [(Y, -6 * s)]})
+    return merge(WORK_SEATED if seated else WORK, {"lowerarm_l": [(Y, 4 * s)], "lowerarm_r": [(Y, -4 * s)], "hand_l": [(Y, 6 * s)], "hand_r": [(Y, -6 * s)]})
 
 
 SHOUT_A = merge({
@@ -203,29 +226,51 @@ def anim_work():
 
 
 def anim_turn_shout():
-    """Back to the player -> turns (head first) -> shouts the line, about 3.6 s."""
-    keys = [(0.0, merge(WORK, turn(0)))]
-    keys.append((0.25, merge(WORK, turn(0), {"head": [(Z, 45)], "neck_01": [(Z, 20)]})))
-    keys.append((0.55, merge(ARMS_RELAXED, turn(110), {"spine_02": [(Z, 25)], "head": [(Z, 20)]})))
-    keys.append((0.85, merge(SHOUT_A, turn(180))))
+    """At the console with his back to the player -> swivels round on the chair (head first) -> shouts the
+    line, about 3.6 s. Seated all the way."""
+    keys = [(0.0, merge(typing(0.0), turn(0)))]
+    keys.append((0.25, merge(WORK_SEATED, turn(0), {"head": [(Z, 45)], "neck_01": [(Z, 20)]})))
+    keys.append((0.55, merge(SIT, LAP, turn(110), {"spine_02": [(Z, 25)], "head": [(Z, 20)]})))
+    keys.append((0.85, merge(SIT, SHOUT_A, turn(180))))
     beats = [1.15, 1.45, 1.85, 2.2, 2.6, 3.0]
     for i, t in enumerate(beats):
-        keys.append((t, merge(SHOUT_B if i % 2 == 0 else SHOUT_A, turn(180))))
-    keys.append((3.6, merge(SHOUT_A, turn(180))))
+        keys.append((t, merge(SIT, SHOUT_B if i % 2 == 0 else SHOUT_A, turn(180))))
+    keys.append((3.6, merge(SIT, SHOUT_A, turn(180))))
     return keys
 
 
 def anim_calm_talk():
-    """Calms down: rubs his neck, shrugs, "well, all right...", about 3.4 s."""
+    """Calms down in the chair: rubs his neck, shrugs, "well, all right...", about 3.4 s."""
+    lap_l = {k: v for k, v in LAP.items() if k.endswith("_l")}
     return [
-        (0.0, merge(SHOUT_A, turn(180))),
-        (0.5, merge(ARMS_RELAXED, turn(180), {"spine_02": [(Y, -3)]})),
-        (1.0, merge(CALM_RUB, turn(180))),
-        (1.4, merge(CALM_RUB, turn(180), {"hand_r": [(Y, 15)]})),
-        (1.8, merge(CALM_RUB, turn(180))),
-        (2.4, merge(CALM_SHRUG, turn(180))),
-        (3.0, merge(ARMS_RELAXED, turn(180), {"head": [(Y, 5)]})),
-        (3.4, merge(ARMS_RELAXED, turn(180))),
+        (0.0, merge(SIT, SHOUT_A, turn(180))),
+        (0.5, merge(SIT, LAP, turn(180), {"spine_02": [(Y, -3)]})),
+        (1.0, merge(SIT, CALM_RUB_SEATED(lap_l), turn(180))),
+        (1.4, merge(SIT, CALM_RUB_SEATED(lap_l), turn(180), {"hand_r": [(Y, 15)]})),
+        (1.8, merge(SIT, CALM_RUB_SEATED(lap_l), turn(180))),
+        (2.4, merge(SIT, CALM_SHRUG, turn(180))),
+        (3.0, merge(SIT, LAP, turn(180), {"head": [(Y, 5)]})),
+        (3.4, merge(SIT, LAP, turn(180))),
+    ]
+
+
+def CALM_RUB_SEATED(lap_l):
+    """The neck rub with the free left hand on the lap instead of hanging beside the leg."""
+    rub = {k: v for k, v in CALM_RUB.items() if not k.endswith("_l")}
+    return merge(rub, lap_l)
+
+
+def anim_stand_up():
+    """Gets out of the chair, about 1 s: leans forward over the feet, pushes up, straightens."""
+    half = {"pelvis_offset": [(0.0, 0.0, -0.2)], "thigh_l": [(Y, -45)], "thigh_r": [(Y, -45)], "calf_l": [(Y, 55)], "calf_r": [(Y, 55)]}
+    return [
+        (0.0, merge(SIT, LAP, turn(180))),
+        (0.35, merge(SIT, LAP, turn(180), {"spine_01": [(Y, 25)], "spine_02": [(Y, 10)]})),
+        # Pushes off the knees: the hands stay on them until the legs are almost straight.
+        (0.7, merge(half, LAP, turn(180), {"spine_01": [(Y, 20)], "spine_02": [(Y, 8)], "lowerarm_l": [(Y, -12)], "lowerarm_r": [(Y, -12)]})),
+        (0.85, merge({"pelvis_offset": [(0.0, 0.0, -0.06)], "thigh_l": [(Y, -12)], "thigh_r": [(Y, -12)], "calf_l": [(Y, 14)], "calf_r": [(Y, 14)]},
+                     LAP, turn(180), {"spine_01": [(Y, 8)]})),
+        (1.0, merge(ARMS_RELAXED, turn(180))),
     ]
 
 
@@ -257,6 +302,7 @@ ANIMS = {
     "A_Vitec_Work": anim_work,
     "A_Vitec_TurnShout": anim_turn_shout,
     "A_Vitec_CalmTalk": anim_calm_talk,
+    "A_Vitec_StandUp": anim_stand_up,
     "A_Vitec_Beckon": anim_beckon,
     "A_Vitec_Idle": anim_idle,
 }
@@ -282,6 +328,7 @@ def bake_actions(arm):
             frame = 1 + round(t * FPS)
             for pb in arm.pose.bones:
                 pb.keyframe_insert("rotation_quaternion", frame=frame)
+            arm.pose.bones["pelvis"].keyframe_insert("location", frame=frame)
         action.frame_range = (1, 1 + round(keys[-1][0] * FPS))
         actions.append(action)
     arm.animation_data.action = None
@@ -382,5 +429,37 @@ def build_rig():
     return arm
 
 
+def rebake():
+    """New animations on the existing rig and weights: appends SK_Vitec and its mesh from
+    Vitec_Rigged.blend into the open scene, bakes ANIMS, saves and exports."""
+    import shutil
+    import tempfile
+    path = os.path.join(FOLDER, "Vitec_Rigged.blend")
+    # Load from a copy: Blender cannot append from the file that is open (or about to be saved over).
+    copy = os.path.join(tempfile.gettempdir(), "Vitec_Rigged_src.blend")
+    shutil.copyfile(path, copy)
+    hg.reset_scene()
+    for block in (bpy.data.armatures, bpy.data.actions):
+        for item in list(block):
+            if item.users == 0 or block is bpy.data.actions:
+                block.remove(item)
+    with bpy.data.libraries.load(copy) as (src, dst):
+        dst.objects = [n for n in src.objects if n in ("SK_Vitec", "SK_Vitec_Mesh")]
+    for obj in dst.objects:
+        bpy.context.scene.collection.objects.link(obj)
+    # Appended data is local; drop the library entries so the file can be saved.
+    for lib in list(bpy.data.libraries):
+        bpy.data.libraries.remove(lib)
+    arm = bpy.data.objects["SK_Vitec"]
+    mesh = bpy.data.objects["SK_Vitec_Mesh"]
+    bake_actions(arm)
+    hg.save_blend(path)
+    export_character(arm, mesh)
+    return arm, mesh
+
+
 if __name__ == "__main__" or True:
-    ARM = build_rig()
+    if globals().get("VITEC_REBAKE"):
+        ARM, MESH = rebake()
+    else:
+        ARM = build_rig()

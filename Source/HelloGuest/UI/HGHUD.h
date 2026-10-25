@@ -16,6 +16,9 @@ class HELLOGUEST_API AHGHUD : public AHUD
 public:
 	virtual void DrawHUD() override;
 
+	/** Cutscene subtitle at the bottom of the screen; a new one replaces the current. */
+	void ShowSubtitle(const FText& Text, float Duration);
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -28,5 +31,9 @@ private:
 	/** Bar at the top of the screen: how much attention the player has drawn from the Guest. */
 	void DrawGuestAttention();
 
+	void DrawSubtitle();
+
 	double SaveIndicatorUntil = 0.0;
+	FText SubtitleText;
+	double SubtitleUntil = 0.0;
 };

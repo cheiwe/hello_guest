@@ -179,6 +179,31 @@ LOOKS = {
     "Vitec": dict(tex=ST + "/T_Vitec_Sheet_D", uv=1.0, rough=0.75),
 }
 
+LOOKS["SkyClouds"] = dict(tex=ST + "/T_StormClouds_D", uv=1.0, emissive=(1, 1, 1), emissive_strength=1.0, emissive_tex=True, additive=True)
+
+# Outdoor surfaces get wet in the storm (the basement concrete a little: puddles, damp walls).
+WET_SLOTS = {name: 1.0 for name in (
+    "Siding", "Shingle", "ShingleMoss", "Moss", "Asphalt", "Ground", "Mud", "ChainLink", "VanPaint", "VanRoof",
+    "VanCream", "VanGlass", "ChromeRust", "Bark", "Foliage", "FoliageDark", "Grass", "RoadLine", "SidingCream",
+    "ShingleBrown", "HoseGreen", "WoodWeathered")}
+WET_SLOTS["Concrete"] = 0.5
+WET_SLOTS["Brick"] = 0.4
+
+# The blockout architecture of L_Act1_Art: engine cubes with world-aligned copies of the looks.
+ARCH_LOOKS = {
+    "Arch_Wallpaper": ("Wallpaper", {}), "Arch_WallpaperStripe": ("Wallpaper_Stripe", {}), "Arch_WoodPanel": ("WoodPanel", {}),
+    "Arch_Siding": ("Siding", {}), "Arch_SidingCream": ("SidingCream", {}), "Arch_WoodFloor": ("WoodFloor", {}),
+    "Arch_WoodDark": ("WoodDark", {}), "Arch_WoodWorn": ("WoodWorn", {}), "Arch_WoodWeathered": ("WoodWeathered", {}),
+    "Arch_Shingle": ("Shingle", {}), "Arch_Trim": ("Trim", {}), "Arch_Brick": ("Brick", {}), "Arch_Concrete": ("Concrete", {}),
+    "Arch_ConcreteDamp": ("Concrete", {"wet": 0.6}), "Arch_Plaster": ("Plaster", {}), "Arch_Ground": ("Ground", {}),
+    "Arch_Mud": ("Mud", {}), "Arch_Asphalt": ("Asphalt", {}), "Arch_ChainLink": ("ChainLink", {}),
+    "Arch_MetalDark": ("MetalDark", {}), "Arch_MetalRust": ("MetalRust", {}),
+}
+for _arch, (_src, _extra) in ARCH_LOOKS.items():
+    LOOKS[_arch] = dict(LOOKS[_src], world=True, **_extra)
+    if _src in WET_SLOTS and "wet" not in _extra:
+        LOOKS[_arch]["wet"] = WET_SLOTS[_src]
+
 # Skeletal characters: FBX with the mesh, the skeleton and all animations.
 CHARACTERS = [("Characters/Vitec/SK_Vitec.fbx", ART + "/Characters/Vitec")]
 
@@ -223,8 +248,8 @@ def import_textures():
 
 # Bump when the master graph changes: masters are created once per version (a loaded, referenced
 # material can be neither deleted nor safely rebuilt in place), instances are re-parented to the new one.
-MASTER_VERSION = 3
-OLD_MASTERS = ["M_HG_Master", "M_HG_Masked", "M_HG_Base_v2", "M_HG_BaseMasked_v2"]
+MASTER_VERSION = 5
+OLD_MASTERS = ["M_HG_Master", "M_HG_Masked", "M_HG_Base_v2", "M_HG_BaseMasked_v2", "M_HG_Base_v3", "M_HG_BaseMasked_v3", "M_HG_BaseAdditive_v3", "M_HG_Base_v4", "M_HG_BaseMasked_v4", "M_HG_BaseAdditive_v4"]
 
 
 def build_master(name="M_HG_Base", masked=False, additive=False):
@@ -248,13 +273,81 @@ def build_master(name="M_HG_Base", masked=False, additive=False):
     def expr(cls, x, y):
         return mel.create_material_expression(mat, cls, x, y)
 
-    coord = expr(unreal.MaterialExpressionTextureCoordinate, -1400, 0)
-    uv_scale = expr(unreal.MaterialExpressionScalarParameter, -1400, 120)
+    coord = expr(unreal.MaterialExpressionTextureCoordinate, -2400, 0)
+
+    # WorldAligned 1: UVs from the world position in metres, projected along the dominant normal axis
+    # (the blockout architecture is scaled engine cubes whose own UVs stretch over each face).
+    def mask(src, x, y, channels):
+        m = expr(unreal.MaterialExpressionComponentMask, x, y)
+        for c in "rgba":
+            m.set_editor_property(c, c in channels)
+        mel.connect_material_expressions(src, "", m, "")
+        return m
+
+    def binary(cls, a, b, x, y):
+        e = expr(cls, x, y)
+        mel.connect_material_expressions(a, "", e, "A")
+        mel.connect_material_expressions(b, "", e, "B")
+        return e
+
+    def const(value, x, y):
+        c = expr(unreal.MaterialExpressionConstant, x, y)
+        c.set_editor_property("r", value)
+        return c
+
+    world_pos = expr(unreal.MaterialExpressionWorldPosition, -2700, 300)
+    metres = binary(unreal.MaterialExpressionMultiply, world_pos, const(0.01, -2700, 420), -2500, 300)
+    normal_ws = expr(unreal.MaterialExpressionVertexNormalWS, -2700, 560)
+    abs_n = expr(unreal.MaterialExpressionAbs, -2500, 560)
+    mel.connect_material_expressions(normal_ws, "", abs_n, "")
+    nx, ny, nz = mask(abs_n, -2300, 520, "r"), mask(abs_n, -2300, 600, "g"), mask(abs_n, -2300, 680, "b")
+    px, py, pz = mask(metres, -2300, 240, "r"), mask(metres, -2300, 300, "g"), mask(metres, -2300, 360, "b")
+    down = binary(unreal.MaterialExpressionMultiply, pz, const(-1.0, -2300, 420), -2150, 380)
+    uv_top = binary(unreal.MaterialExpressionAppendVector, px, py, -2000, 200)
+    uv_x = binary(unreal.MaterialExpressionAppendVector, py, down, -2000, 300)
+    uv_y = binary(unreal.MaterialExpressionAppendVector, px, down, -2000, 400)
+
+    def choose(a, b, greater, less, x, y):
+        """greater where a >= b, else less: a lerp with a hard step (the If node's pins are fragile)."""
+        diff = binary(unreal.MaterialExpressionSubtract, a, b, x - 150, y + 80)
+        sharp = binary(unreal.MaterialExpressionMultiply, diff, const(10000.0, x - 150, y + 140), x - 100, y + 80)
+        step = expr(unreal.MaterialExpressionSaturate, x - 50, y + 80)
+        mel.connect_material_expressions(sharp, "", step, "")
+        e = expr(unreal.MaterialExpressionLinearInterpolate, x, y)
+        mel.connect_material_expressions(less, "", e, "A")
+        mel.connect_material_expressions(greater, "", e, "B")
+        mel.connect_material_expressions(step, "", e, "Alpha")
+        return e
+
+    side = choose(nx, ny, uv_x, uv_y, -1850, 360)
+    side_n = binary(unreal.MaterialExpressionMax, nx, ny, -2100, 640)
+    world_uv = choose(nz, side_n, uv_top, side, -1700, 300)
+    world_aligned = expr(unreal.MaterialExpressionScalarParameter, -1700, 460)
+    world_aligned.set_editor_property("parameter_name", "WorldAligned")
+    world_aligned.set_editor_property("default_value", 0.0)
+    raw_uv = expr(unreal.MaterialExpressionLinearInterpolate, -1500, 100)
+    mel.connect_material_expressions(coord, "", raw_uv, "A")
+    mel.connect_material_expressions(world_uv, "", raw_uv, "B")
+    mel.connect_material_expressions(world_aligned, "", raw_uv, "Alpha")
+
+    uv_scale = expr(unreal.MaterialExpressionScalarParameter, -1400, 220)
     uv_scale.set_editor_property("parameter_name", "UVScale")
     uv_scale.set_editor_property("default_value", 1.0)
     uv = expr(unreal.MaterialExpressionMultiply, -1150, 40)
-    mel.connect_material_expressions(coord, "", uv, "A")
+    mel.connect_material_expressions(raw_uv, "", uv, "A")
     mel.connect_material_expressions(uv_scale, "", uv, "B")
+
+    # Wetness 1: darker and glossier (outdoor surfaces in the rain).
+    wetness = expr(unreal.MaterialExpressionScalarParameter, -600, -560)
+    wetness.set_editor_property("parameter_name", "Wetness")
+    wetness.set_editor_property("default_value", 0.0)
+
+    def wet_factor(dry, wet, x, y):
+        e = expr(unreal.MaterialExpressionLinearInterpolate, x, y)
+        mel.connect_material_expressions(const(dry, x - 150, y), "", e, "A")
+        mel.connect_material_expressions(const(wet, x - 150, y + 60), "", e, "B")
+        mel.connect_material_expressions(wetness, "", e, "Alpha")
+        return e
 
     def sampler(name, x, y, sampler_type, default):
         s = expr(unreal.MaterialExpressionTextureSampleParameter2D, x, y)
@@ -274,7 +367,8 @@ def build_master(name="M_HG_Base", masked=False, additive=False):
     base = expr(unreal.MaterialExpressionMultiply, -350, -320)
     mel.connect_material_expressions(base_tex, "RGB", base, "A")
     mel.connect_material_expressions(tint, "RGB", base, "B")
-    mel.connect_material_property(base, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    wet_base = binary(unreal.MaterialExpressionMultiply, base, wet_factor(1.0, 0.6, -350, -480), -200, -320)
+    mel.connect_material_property(wet_base, "", unreal.MaterialProperty.MP_BASE_COLOR)
     if masked:
         mel.connect_material_property(base_tex, "A", unreal.MaterialProperty.MP_OPACITY_MASK)
 
@@ -286,7 +380,8 @@ def build_master(name="M_HG_Base", masked=False, additive=False):
     rough = expr(unreal.MaterialExpressionMultiply, -350, 330)
     mel.connect_material_expressions(rough_tex, "R", rough, "A")
     mel.connect_material_expressions(rough_scale, "", rough, "B")
-    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    wet_rough = binary(unreal.MaterialExpressionMultiply, rough, wet_factor(1.0, 0.3, -350, 460), -200, 330)
+    mel.connect_material_property(wet_rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
 
     metallic = expr(unreal.MaterialExpressionScalarParameter, -350, 150)
     metallic.set_editor_property("parameter_name", "Metallic")
@@ -322,6 +417,92 @@ def build_master(name="M_HG_Base", masked=False, additive=False):
     return mat
 
 
+def build_rain_material():
+    """M_HG_Rain_v1: additive unlit two-sided streaks panning down, faded out close to the camera so
+    the curtains never cut through the view. MI_Rain (Intensity, Speed) is what SM_RainCurtains uses."""
+    path = MATERIALS + "/M_HG_Rain_v1"
+    if eal.does_asset_exist(path):
+        mat = unreal.load_asset(path)
+    else:
+        mat = asset_tools.create_asset("M_HG_Rain_v1", MATERIALS, unreal.Material, unreal.MaterialFactoryNew())
+        mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_ADDITIVE)
+        mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+        mat.set_editor_property("two_sided", True)
+
+        def expr(cls, x, y):
+            return mel.create_material_expression(mat, cls, x, y)
+
+        def binary(cls, a, b, x, y, a_out=""):
+            e = expr(cls, x, y)
+            mel.connect_material_expressions(a, a_out, e, "A")
+            mel.connect_material_expressions(b, "", e, "B")
+            return e
+
+        def scalar(name, value, x, y):
+            p = expr(unreal.MaterialExpressionScalarParameter, x, y)
+            p.set_editor_property("parameter_name", name)
+            p.set_editor_property("default_value", value)
+            return p
+
+        def const(value, x, y):
+            c = expr(unreal.MaterialExpressionConstant, x, y)
+            c.set_editor_property("r", value)
+            return c
+
+        coord = expr(unreal.MaterialExpressionTextureCoordinate, -1200, 0)
+        shift = binary(unreal.MaterialExpressionMultiply, expr(unreal.MaterialExpressionTime, -1200, 250), scalar("Speed", -2.2, -1200, 150), -1000, 200)
+        offset = binary(unreal.MaterialExpressionAppendVector, const(0.0, -1000, 320), shift, -850, 250)
+        uv = binary(unreal.MaterialExpressionAdd, coord, offset, -700, 100)
+        tex = expr(unreal.MaterialExpressionTextureSampleParameter2D, -500, 100)
+        tex.set_editor_property("parameter_name", "RainTex")
+        tex.set_editor_property("texture", unreal.load_asset(ST + "/T_Rain_D"))
+        mel.connect_material_expressions(uv, "", tex, "UVs")
+        colour = expr(unreal.MaterialExpressionVectorParameter, -500, 350)
+        colour.set_editor_property("parameter_name", "Color")
+        colour.set_editor_property("default_value", unreal.LinearColor(0.55, 0.62, 0.75, 1))
+        fade = binary(unreal.MaterialExpressionMultiply, expr(unreal.MaterialExpressionPixelDepth, -700, 600), const(1.0 / 400.0, -700, 700), -550, 650)
+        fade_c = expr(unreal.MaterialExpressionSaturate, -400, 650)
+        mel.connect_material_expressions(fade, "", fade_c, "")
+        lit = binary(unreal.MaterialExpressionMultiply, tex, colour, -300, 150, a_out="RGB")
+        strong = binary(unreal.MaterialExpressionMultiply, lit, scalar("Intensity", 0.35, -500, 500), -150, 250)
+        out = binary(unreal.MaterialExpressionMultiply, strong, fade_c, 0, 350)
+        mel.connect_material_property(out, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+        mel.recompile_material(mat)
+        eal.save_loaded_asset(mat)
+    mi_path = MATERIALS + "/MI_Rain"
+    mi = unreal.load_asset(mi_path) if eal.does_asset_exist(mi_path) else asset_tools.create_asset(
+        "MI_Rain", MATERIALS, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
+    mel.set_material_instance_parent(mi, mat)
+    eal.save_loaded_asset(mi)
+
+
+SOURCE_AUDIO = os.path.join(PROJECT, "SourceArt", "Audio")
+AUDIO = ART + "/Audio"
+
+
+def import_sounds():
+    """SourceArt/Audio/*.wav -> /Game/Art/Audio; sounds with Loop in the name loop."""
+    tasks = []
+    names = sorted(os.listdir(SOURCE_AUDIO)) if os.path.isdir(SOURCE_AUDIO) else []
+    for name in names:
+        if name.lower().endswith(".wav"):
+            task = unreal.AssetImportTask()
+            task.filename = os.path.join(SOURCE_AUDIO, name)
+            task.destination_path = AUDIO
+            task.replace_existing = True
+            task.automated = True
+            task.save = False
+            tasks.append(task)
+    asset_tools.import_asset_tasks(tasks)
+    for task in tasks:
+        for path in task.imported_object_paths:
+            sound = unreal.load_asset(path)
+            if "Loop" in sound.get_name():
+                sound.set_editor_property("looping", True)
+            eal.save_loaded_asset(sound)
+    unreal.log("Hello Guest art: %d sounds imported" % len(tasks))
+
+
 def polyhaven(asset_id, kind):
     return "%s/%s/%s_%s_2k" % (PH, asset_id, asset_id, kind)
 
@@ -346,6 +527,8 @@ def build_instances(master, masked_master, additive_master):
         if look.get("normal"):
             mel.set_material_instance_texture_parameter_value(mi, "NormalTex", unreal.load_asset(look["normal"]))
         mel.set_material_instance_scalar_parameter_value(mi, "UVScale", look.get("uv", 1.0))
+        mel.set_material_instance_scalar_parameter_value(mi, "WorldAligned", 1.0 if look.get("world") else 0.0)
+        mel.set_material_instance_scalar_parameter_value(mi, "Wetness", look.get("wet", WET_SLOTS.get(name, 0.0)))
         mel.set_material_instance_scalar_parameter_value(mi, "Roughness", look.get("rough", 0.7))
         mel.set_material_instance_scalar_parameter_value(mi, "Metallic", look.get("metallic", 0.0))
         mel.set_material_instance_vector_parameter_value(mi, "Tint", unreal.LinearColor(*look.get("tint", (1, 1, 1)), 1))
@@ -423,6 +606,11 @@ def import_characters():
     """Skeletal mesh + skeleton + animation sequences; material slots get MI_<slot> like the props."""
     unreal.SystemLibrary.execute_console_command(None, "Interchange.FeatureFlags.Import.FBX false")
     for rel, dest in CHARACTERS:
+        # Always a clean import: a reimport over the old assets neither adds new takes nor reliably
+        # refreshes the old ones (and an animation-only import loses the metre-to-cm conversion).
+        # Levels using the character are rebuilt by their scripts (create_act1_art.py).
+        if eal.does_directory_exist(dest):
+            eal.delete_directory(dest)
         options = unreal.FbxImportUI()
         options.set_editor_property("import_mesh", True)
         options.set_editor_property("import_as_skeletal", True)
@@ -475,10 +663,12 @@ def main():
     masked_master = build_master("M_HG_BaseMasked", masked=True)
     additive_master = build_master("M_HG_BaseAdditive", additive=True)
     build_instances(master, masked_master, additive_master)
+    build_rain_material()
+    import_sounds()
     # Masters of older versions are unreferenced now.
     for asset in eal.list_assets(MATERIALS, recursive=False):
         short = asset.split("/")[-1].split(".")[0]
-        if (short in OLD_MASTERS or short.startswith(("M_HG_Base_v", "M_HG_BaseMasked_v"))) and short not in (master.get_name(), masked_master.get_name()):
+        if (short in OLD_MASTERS or short.startswith(("M_HG_Base_v", "M_HG_BaseMasked_v", "M_HG_BaseAdditive_v"))) and short not in (master.get_name(), masked_master.get_name(), additive_master.get_name()):
             if not eal.delete_asset(asset.split(".")[0]):
                 unreal.log_warning("Hello Guest art: old master %s is still referenced" % short)
     import_meshes()
